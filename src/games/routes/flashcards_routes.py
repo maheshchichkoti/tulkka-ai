@@ -1,0 +1,142 @@
+# src/games/routes/flashcards_routes.py
+from fastapi import APIRouter, Depends, HTTPException, Request, Query, status, Header
+from typing import Optional
+from src.games.middlewares.auth import get_current_user
+from src.games.middlewares.idempotency import check_idempotency, save_idempotent_response, IDEMPOTENCY_HEADER
+from src.games.services import wordlists_service
+from src.games.services.flashcards_service import FlashcardsService
+from src.games.schemas.wordlists_schemas import WordListCreate, WordListUpdate
+from src.games.schemas.words_schemas import WordCreate, WordUpdate
+from src.games.schemas.flashcards_schemas import StartSessionRequest, PracticeResultRequest, CompleteSessionRequest
+
+router = APIRouter(prefix="/v1", tags=["Games - Flashcards"])
+flashcards_service = FlashcardsService()
+
+# Word lists endpoints
+
+@router.get("/word-lists")
+def list_word_lists(request: Request, page: int = 1, limit: int = 20, classId: Optional[str] = None, user=Depends(get_current_user)):
+    data = wordlists_service.list_word_lists(user['userId'], classId, limit=limit, offset=(page-1)*limit)
+    return {"data": data, "pagination": {"page": page, "limit": limit, "total": len(data)}}
+
+@router.post("/word-lists", status_code=201)
+def create_word_list(payload: WordListCreate, request: Request, user=Depends(get_current_user)):
+    wl = wordlists_service.create_word_list(user['userId'], payload.dict(by_alias=True))
+    return wl
+
+@router.get("/word-lists/{list_id}")
+def get_word_list(list_id: str, include: Optional[str] = Query(None), page: int = 1, limit: int = 100, user=Depends(get_current_user)):
+    include_words = False
+    if include and 'words' in include:
+        include_words = True
+    wl = wordlists_service.get_word_list(user['userId'], list_id, include_words=include_words, page=page, limit=limit)
+    if not wl:
+        raise HTTPException(status_code=404, detail="Word list not found")
+    return wl
+
+@router.patch("/word-lists/{list_id}")
+def patch_word_list(list_id: str, payload: WordListUpdate, user=Depends(get_current_user)):
+    wl = wordlists_service.update_word_list(user['userId'], list_id, payload.dict(exclude_unset=True, by_alias=True))
+    if not wl:
+        raise HTTPException(status_code=404, detail="Word list not found or not allowed")
+    return wl
+
+@router.delete("/word-lists/{list_id}", status_code=204)
+def delete_word_list(list_id: str, user=Depends(get_current_user)):
+    ok = wordlists_service.delete_word_list(user['userId'], list_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Not found or not allowed")
+    return {}
+
+# Words routes (simple wrappers — service functions live in wordlists_service via DAOs)
+
+@router.post("/word-lists/{list_id}/words", status_code=201)
+def add_word(list_id: str, payload: WordCreate, user=Depends(get_current_user)):
+    from src.games.dao.words_dao import create_word
+    w = create_word(list_id, payload.word, payload.translation, payload.notes, payload.difficulty)
+    return w
+
+@router.patch("/word-lists/{list_id}/words/{word_id}")
+def update_word(list_id: str, word_id: str, payload: WordUpdate, user=Depends(get_current_user)):
+    from src.games.dao.words_dao import update_word, get_word
+    w = update_word(word_id, list_id, payload.dict(exclude_unset=True, by_alias=True))
+    if not w:
+        raise HTTPException(status_code=404, detail="Word not found")
+    return w
+
+@router.delete("/word-lists/{list_id}/words/{word_id}", status_code=204)
+def remove_word(list_id: str, word_id: str, user=Depends(get_current_user)):
+    from src.games.dao.words_dao import delete_word
+    ok = delete_word(word_id, list_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Word not found")
+    return {}
+
+# Flashcard sessions
+
+@router.post("/flashcards/sessions", status_code=201)
+def start_flashcards_session(payload: StartSessionRequest, request: Request, idempotency_key: Optional[str] = Header(None, alias=IDEMPOTENCY_HEADER), user=Depends(get_current_user)):
+    # idempotency check
+    prev = check_idempotency(user['userId'], "/v1/flashcards/sessions", idempotency_key)
+    if prev:
+        return prev
+    res = flashcards_service.start_session(user['userId'], payload)
+    if idempotency_key:
+        save_idempotent_response(user['userId'], "/v1/flashcards/sessions", idempotency_key, res)
+    return res
+
+@router.get("/flashcards/sessions/{session_id}")
+def get_flashcard_session(session_id: str, user=Depends(get_current_user)):
+    session = flashcards_service.dao.get_session(session_id)
+    if not session or session["user_id"] != user['userId']:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    words = flashcards_service.dao.fetch_list_words(session["list_id"])
+    for w in words:
+        w["accuracy"] = int(100 * w["correct_count"] / max(1, w["practice_count"]))
+    
+    return {
+        "id": session["id"],
+        "wordListId": session["list_id"],
+        "words": words,
+        "progress": {
+            "current": session["progress_current"],
+            "total": session["progress_total"],
+            "correct": session["correct"],
+            "incorrect": session["incorrect"]
+        },
+        "startedAt": session["started_at"].isoformat() + "Z",
+        "completedAt": session["completed_at"].isoformat() + "Z" if session["completed_at"] else None
+    }
+
+@router.post("/flashcards/sessions/{session_id}/results")
+def record_flashcard_result(session_id: str, payload: PracticeResultRequest, request: Request, idempotency_key: Optional[str] = Header(None, alias=IDEMPOTENCY_HEADER), user=Depends(get_current_user)):
+    route = f"/v1/flashcards/sessions/{session_id}/results"
+    prev = check_idempotency(user['userId'], route, idempotency_key)
+    if prev:
+        return prev
+    res = flashcards_service.record_result(user['userId'], session_id, payload)
+    if idempotency_key:
+        save_idempotent_response(user['userId'], route, idempotency_key, res)
+    return res
+
+@router.post("/flashcards/sessions/{session_id}/complete")
+def complete_flashcard_session(session_id: str, payload: CompleteSessionRequest, user=Depends(get_current_user)):
+    res = flashcards_service.complete_session(user['userId'], session_id, payload)
+    return res
+
+@router.get("/flashcards/stats/me")
+def flashcard_stats(user=Depends(get_current_user)):
+    # minimal aggregate: reuse existing progress endpoint if present
+    from src.db.mysql_pool import execute_query
+    q = """
+        SELECT COUNT(*) as total_sessions,
+               SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_sessions,
+               AVG(final_score) as avg_score,
+               SUM(correct_count) as total_correct,
+               SUM(incorrect_count) as total_incorrect
+        FROM game_sessions
+        WHERE user_id = %s AND game_type = 'flashcards'
+    """
+    stats = execute_query(q, (user['userId'],), fetch_one=True)
+    return {"totals": stats or {"total_sessions":0,"completed_sessions":0,"avg_score":0,"total_correct":0,"total_incorrect":0}}
