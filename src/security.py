@@ -6,6 +6,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+class JWTValidationError(Exception):
+    """JWT validation error"""
+    pass
+
 def decode_jwt(token: str) -> Optional[Dict[str, Any]]:
     """Decode and validate a JWT token. Returns payload or None."""
     if not token:
@@ -17,6 +21,16 @@ def decode_jwt(token: str) -> Optional[Dict[str, Any]]:
         logger.debug("JWT decode failed: %s", e)
         return None
 
+def verify_jwt(token: str) -> Dict[str, Any]:
+    """Verify JWT and return payload, raise JWTValidationError if invalid"""
+    if not token:
+        raise JWTValidationError("Missing token")
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET or "", algorithms=[settings.JWT_ALGORITHM])
+        return payload
+    except JWTError as e:
+        raise JWTValidationError(f"Invalid token: {e}")
+
 def require_scope(payload: Dict[str, Any], required_scope: str) -> bool:
     """Check scope presence in token payload (simple)."""
     if not payload:
@@ -25,5 +39,3 @@ def require_scope(payload: Dict[str, Any], required_scope: str) -> bool:
     if isinstance(scopes, str):
         scopes = scopes.split()
     return required_scope in scopes
-
-# Rate limiting hooks are intended to be applied by your API layer (e.g., slowapi or FastAPI middlewares).

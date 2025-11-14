@@ -6,13 +6,39 @@ from fastapi.responses import Response
 from fastapi.routing import APIRoute
 from starlette.middleware.base import BaseHTTPMiddleware
 from ..security import verify_jwt, JWTValidationError
+from ..config import settings
 from .errors import APIError
 
 logger = logging.getLogger(__name__)
 
 
 class JWTAuthMiddleware(BaseHTTPMiddleware):
+    """JWT auth with public route support and dev-mode bypass."""
+
+    PUBLIC_PATHS = {
+        "/",
+        "/v1/health",
+        "/docs",
+        "/redoc",
+        "/openapi.json",
+        "/api/v1/process",
+        "/api/v1/process-zoom-lesson",
+        "/api/v1/exercises",
+    }
+
+    def _is_public(self, path: str) -> bool:
+        if path in self.PUBLIC_PATHS:
+            return True
+        return path.startswith("/docs") or path.startswith("/redoc")
+
     async def dispatch(self, request: Request, call_next):
+        # Allow everything in development mode to unblock local testing
+        if settings.ENVIRONMENT != "production":
+            return await call_next(request)
+
+        if self._is_public(request.url.path):
+            return await call_next(request)
+
         auth = request.headers.get("Authorization", "")
         if not auth.startswith("Bearer "):
             raise APIError("UNAUTHORIZED", "missing bearer token", 401)

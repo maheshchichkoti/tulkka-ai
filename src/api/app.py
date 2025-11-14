@@ -16,6 +16,19 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="Tulkka AI", version="1.0.0", docs_url="/docs", redoc_url="/redoc")
 
+    # Startup/shutdown events
+    @app.on_event("startup")
+    async def startup():
+        from ..db.mysql_pool import AsyncMySQLPool
+        await AsyncMySQLPool.init_pool()
+        logging.info("Application started")
+
+    @app.on_event("shutdown")
+    async def shutdown():
+        from ..db.mysql_pool import AsyncMySQLPool
+        await AsyncMySQLPool.close_pool()
+        logging.info("Application shutdown")
+
     # CORS
     app.add_middleware(
         CORSMiddleware,

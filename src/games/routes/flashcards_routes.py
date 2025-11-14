@@ -75,23 +75,23 @@ def remove_word(list_id: str, word_id: str, user=Depends(get_current_user)):
 # Flashcard sessions
 
 @router.post("/flashcards/sessions", status_code=201)
-def start_flashcards_session(payload: StartSessionRequest, request: Request, idempotency_key: Optional[str] = Header(None, alias=IDEMPOTENCY_HEADER), user=Depends(get_current_user)):
+async def start_flashcards_session(payload: StartSessionRequest, request: Request, idempotency_key: Optional[str] = Header(None, alias=IDEMPOTENCY_HEADER), user=Depends(get_current_user)):
     # idempotency check
-    prev = check_idempotency(user['userId'], "/v1/flashcards/sessions", idempotency_key)
+    prev = await check_idempotency(user['userId'], "/v1/flashcards/sessions", idempotency_key)
     if prev:
         return prev
-    res = flashcards_service.start_session(user['userId'], payload)
+    res = await flashcards_service.start_session(user['userId'], payload)
     if idempotency_key:
-        save_idempotent_response(user['userId'], "/v1/flashcards/sessions", idempotency_key, res)
+        await save_idempotent_response(user['userId'], "/v1/flashcards/sessions", idempotency_key, res)
     return res
 
 @router.get("/flashcards/sessions/{session_id}")
-def get_flashcard_session(session_id: str, user=Depends(get_current_user)):
-    session = flashcards_service.dao.get_session(session_id)
+async def get_flashcard_session(session_id: str, user=Depends(get_current_user)):
+    session = await flashcards_service.dao.get_session(session_id)
     if not session or session["user_id"] != user['userId']:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    words = flashcards_service.dao.fetch_list_words(session["list_id"])
+    words = await flashcards_service.dao.fetch_list_words(session["list_id"])
     for w in words:
         w["accuracy"] = int(100 * w["correct_count"] / max(1, w["practice_count"]))
     
@@ -110,19 +110,19 @@ def get_flashcard_session(session_id: str, user=Depends(get_current_user)):
     }
 
 @router.post("/flashcards/sessions/{session_id}/results")
-def record_flashcard_result(session_id: str, payload: PracticeResultRequest, request: Request, idempotency_key: Optional[str] = Header(None, alias=IDEMPOTENCY_HEADER), user=Depends(get_current_user)):
+async def record_flashcard_result(session_id: str, payload: PracticeResultRequest, request: Request, idempotency_key: Optional[str] = Header(None, alias=IDEMPOTENCY_HEADER), user=Depends(get_current_user)):
     route = f"/v1/flashcards/sessions/{session_id}/results"
-    prev = check_idempotency(user['userId'], route, idempotency_key)
+    prev = await check_idempotency(user['userId'], route, idempotency_key)
     if prev:
         return prev
-    res = flashcards_service.record_result(user['userId'], session_id, payload)
+    res = await flashcards_service.record_result(user['userId'], session_id, payload)
     if idempotency_key:
-        save_idempotent_response(user['userId'], route, idempotency_key, res)
+        await save_idempotent_response(user['userId'], route, idempotency_key, res)
     return res
 
 @router.post("/flashcards/sessions/{session_id}/complete")
-def complete_flashcard_session(session_id: str, payload: CompleteSessionRequest, user=Depends(get_current_user)):
-    res = flashcards_service.complete_session(user['userId'], session_id, payload)
+async def complete_flashcard_session(session_id: str, payload: CompleteSessionRequest, user=Depends(get_current_user)):
+    res = await flashcards_service.complete_session(user['userId'], session_id, payload)
     return res
 
 @router.get("/flashcards/stats/me")

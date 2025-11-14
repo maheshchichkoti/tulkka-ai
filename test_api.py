@@ -1,16 +1,21 @@
 """Quick test script to verify API is working"""
 import requests
 import json
+import time
 
 BASE_URL = "http://localhost:8000"
 
 def test_health():
     """Test health endpoint"""
     print("\n=== Testing Health Endpoint ===")
-    response = requests.get(f"{BASE_URL}/v1/health")
-    print(f"Status: {response.status_code}")
-    print(f"Response: {response.json()}")
-    return response.status_code == 200
+    try:
+        response = requests.get(f"{BASE_URL}/v1/health", timeout=5)
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.json()}")
+        return response.status_code == 200
+    except Exception as e:
+        print(f"Error: {e}")
+        return False
 
 def test_process_transcript():
     """Test transcript processing"""
