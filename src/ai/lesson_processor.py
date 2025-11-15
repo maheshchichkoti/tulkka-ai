@@ -70,10 +70,21 @@ class LessonProcessor:
             quality_passed = True
             if self.quality_checker:
                 try:
-                    # Convert to format expected by quality checker (fill_in_blank, flashcards, spelling)
+                    # Convert dataclass objects to dicts for quality checker
+                    def to_dict_for_qc(item):
+                        if hasattr(item, 'to_dict'):
+                            return item.to_dict()
+                        elif isinstance(item, dict):
+                            return item
+                        else:
+                            return item.__dict__ if hasattr(item, '__dict__') else {}
+                    
+                    cloze_dicts = [to_dict_for_qc(c) for c in cloze_items]
+                    flashcard_dicts = [to_dict_for_qc(f) for f in flashcards]
+                    
                     quality_passed = self.quality_checker.validate_exercises(
-                        cloze_items,  # treat cloze as fill-in-blank
-                        flashcards,
+                        cloze_dicts,  # treat cloze as fill-in-blank
+                        flashcard_dicts,
                         []  # no spelling in this flow
                     )
                     if not quality_passed:

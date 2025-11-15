@@ -37,7 +37,7 @@ def print_error(text: str):
 def print_info(text: str):
     print(f"{Colors.YELLOW}ℹ{Colors.END} {text}")
 
-def test_request(name: str, method: str, url: str, data: Dict = None, expected_status: int = 200) -> tuple:
+def test_request(name: str, method: str, url: str, data: Dict = None, expected_status: int = 200, allow_404_on_delete: bool = False) -> tuple:
     """Make a request and return (success, response_data)"""
     try:
         if method == "GET":
@@ -51,6 +51,11 @@ def test_request(name: str, method: str, url: str, data: Dict = None, expected_s
         else:
             print_error(f"{name}: Unknown method {method}")
             return False, None
+        
+        # For DELETE operations, treat 404 as success if allowed (resource already deleted)
+        if allow_404_on_delete and method == "DELETE" and response.status_code == 404:
+            print_success(f"{name}: 404 (already deleted)")
+            return True, None
         
         if response.status_code == expected_status:
             print_success(f"{name}: {response.status_code}")
@@ -146,6 +151,11 @@ def main():
         f"{BASE_URL}/v1/webhooks/zoom-recording-download",
         zoom_webhook_data
     )
+    
+    # Note: This will fail if Supabase schema not applied
+    if not success:
+        print_info("⚠️  Zoom webhook requires Supabase schema (run supabase_zoom_schema.sql)")
+    
     results.append(("Zoom Webhook", success))
     
     zoom_summary_id = None
@@ -245,8 +255,8 @@ def main():
                 result_data = {
                     "wordId": word_id,
                     "isCorrect": True,
-                    "attempts": 1,
-                    "timeSpentMs": 2500
+                    "timeSpent": 2500,
+                    "attempts": 1
                 }
                 
                 success, _ = test_request(
@@ -339,7 +349,8 @@ def main():
             "Delete Word",
             "DELETE",
             f"{BASE_URL}/v1/word-lists/{list_id}/words/{word_id}",
-            expected_status=204
+            expected_status=204,
+            allow_404_on_delete=True
         )
         # Don't add to results - cleanup is optional
     
@@ -348,7 +359,8 @@ def main():
             "Delete Word List",
             "DELETE",
             f"{BASE_URL}/v1/word-lists/{list_id}",
-            expected_status=204
+            expected_status=204,
+            allow_404_on_delete=True
         )
         # Don't add to results - cleanup is optional
     
