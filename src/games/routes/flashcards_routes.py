@@ -15,62 +15,81 @@ flashcards_service = FlashcardsService()
 # Word lists endpoints
 
 @router.get("/word-lists")
-def list_word_lists(request: Request, page: int = 1, limit: int = 20, classId: Optional[str] = None, user=Depends(get_current_user)):
-    data = wordlists_service.list_word_lists(user['userId'], classId, limit=limit, offset=(page-1)*limit)
+async def list_word_lists(request: Request, page: int = 1, limit: int = 20, classId: Optional[str] = None, user=Depends(get_current_user)):
+    data = await wordlists_service.list_word_lists(user['userId'], classId, limit=limit, offset=(page-1)*limit)
     return {"data": data, "pagination": {"page": page, "limit": limit, "total": len(data)}}
 
 @router.post("/word-lists", status_code=201)
-def create_word_list(payload: WordListCreate, request: Request, user=Depends(get_current_user)):
-    wl = wordlists_service.create_word_list(user['userId'], payload.dict(by_alias=True))
+async def create_word_list(payload: WordListCreate, request: Request, user=Depends(get_current_user)):
+    wl = await wordlists_service.create_word_list(user['userId'], payload.dict(by_alias=True))
     return wl
 
 @router.get("/word-lists/{list_id}")
-def get_word_list(list_id: str, include: Optional[str] = Query(None), page: int = 1, limit: int = 100, user=Depends(get_current_user)):
+async def get_word_list(list_id: str, include: Optional[str] = Query(None), page: int = 1, limit: int = 100, user=Depends(get_current_user)):
     include_words = False
     if include and 'words' in include:
         include_words = True
-    wl = wordlists_service.get_word_list(user['userId'], list_id, include_words=include_words, page=page, limit=limit)
+    wl = await wordlists_service.get_word_list(user['userId'], list_id, include_words=include_words, page=page, limit=limit)
     if not wl:
         raise HTTPException(status_code=404, detail="Word list not found")
     return wl
 
 @router.patch("/word-lists/{list_id}")
-def patch_word_list(list_id: str, payload: WordListUpdate, user=Depends(get_current_user)):
-    wl = wordlists_service.update_word_list(user['userId'], list_id, payload.dict(exclude_unset=True, by_alias=True))
+async def patch_word_list(list_id: str, payload: WordListUpdate, user=Depends(get_current_user)):
+    wl = await wordlists_service.update_word_list(user['userId'], list_id, payload.dict(exclude_unset=True, by_alias=True))
     if not wl:
         raise HTTPException(status_code=404, detail="Word list not found or not allowed")
     return wl
 
 @router.delete("/word-lists/{list_id}", status_code=204)
-def delete_word_list(list_id: str, user=Depends(get_current_user)):
-    ok = wordlists_service.delete_word_list(user['userId'], list_id)
+async def delete_word_list(list_id: str, user=Depends(get_current_user)):
+    ok = await wordlists_service.delete_word_list(user['userId'], list_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Not found or not allowed")
     return {}
 
+@router.post("/word-lists/{list_id}/favorite")
+async def toggle_list_favorite(list_id: str, payload: dict, user=Depends(get_current_user)):
+    """Toggle favorite status of a word list"""
+    is_favorite = payload.get("isFavorite", True)
+    wl = await wordlists_service.update_word_list(user['userId'], list_id, {"is_favorite": is_favorite})
+    if not wl:
+        raise HTTPException(status_code=404, detail="Word list not found")
+    return {"ok": True, "isFavorite": is_favorite}
+
 # Words routes (simple wrappers — service functions live in wordlists_service via DAOs)
 
 @router.post("/word-lists/{list_id}/words", status_code=201)
-def add_word(list_id: str, payload: WordCreate, user=Depends(get_current_user)):
+async def add_word(list_id: str, payload: WordCreate, user=Depends(get_current_user)):
     from src.games.dao.words_dao import create_word
-    w = create_word(list_id, payload.word, payload.translation, payload.notes, payload.difficulty)
+    w = await create_word(list_id, payload.word, payload.translation, payload.notes, payload.difficulty)
     return w
 
 @router.patch("/word-lists/{list_id}/words/{word_id}")
-def update_word(list_id: str, word_id: str, payload: WordUpdate, user=Depends(get_current_user)):
-    from src.games.dao.words_dao import update_word, get_word
-    w = update_word(word_id, list_id, payload.dict(exclude_unset=True, by_alias=True))
+async def update_word(list_id: str, word_id: str, payload: WordUpdate, user=Depends(get_current_user)):
+    from src.games.dao.words_dao import update_word
+    w = await update_word(word_id, list_id, payload.dict(exclude_unset=True, by_alias=True))
     if not w:
         raise HTTPException(status_code=404, detail="Word not found")
     return w
 
 @router.delete("/word-lists/{list_id}/words/{word_id}", status_code=204)
-def remove_word(list_id: str, word_id: str, user=Depends(get_current_user)):
+async def remove_word(list_id: str, word_id: str, user=Depends(get_current_user)):
     from src.games.dao.words_dao import delete_word
-    ok = delete_word(word_id, list_id)
+    ok = await delete_word(word_id, list_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Word not found")
     return {}
+
+@router.post("/word-lists/{list_id}/words/{word_id}/favorite")
+async def toggle_word_favorite(list_id: str, word_id: str, payload: dict, user=Depends(get_current_user)):
+    """Toggle favorite status of a word"""
+    from src.games.dao.words_dao import update_word
+    is_favorite = payload.get("isFavorite", True)
+    w = await update_word(word_id, list_id, {"is_favorite": is_favorite})
+    if not w:
+        raise HTTPException(status_code=404, detail="Word not found")
+    return {"ok": True, "isFavorite": is_favorite}
 
 # Flashcard sessions
 
@@ -126,7 +145,7 @@ async def complete_flashcard_session(session_id: str, payload: CompleteSessionRe
     return res
 
 @router.get("/flashcards/stats/me")
-def flashcard_stats(user=Depends(get_current_user)):
+async def flashcard_stats(user=Depends(get_current_user)):
     # minimal aggregate: reuse existing progress endpoint if present
     from src.db.mysql_pool import execute_query
     q = """
@@ -138,5 +157,26 @@ def flashcard_stats(user=Depends(get_current_user)):
         FROM game_sessions
         WHERE user_id = %s AND game_type = 'flashcards'
     """
-    stats = execute_query(q, (user['userId'],), fetch_one=True)
+    stats = await execute_query(q, (user['userId'],), fetchone=True)
     return {"totals": stats or {"total_sessions":0,"completed_sessions":0,"avg_score":0,"total_correct":0,"total_incorrect":0}}
+
+@router.delete("/word-lists/{list_id}/words/{word_id}", status_code=204)
+async def delete_word(list_id: str, word_id: str, user=Depends(get_current_user)):
+    """Delete a word from a word list (idempotent)"""
+    from src.games.dao import words_dao
+
+    word = await words_dao.get_word(word_id, list_id)
+    if word:
+        await words_dao.delete_word(word_id, list_id)
+    # Always return 204 so repeated deletes are safe
+    return None
+
+@router.delete("/word-lists/{list_id}", status_code=204)
+async def delete_word_list(list_id: str, user=Depends(get_current_user)):
+    """Delete a word list (idempotent)"""
+    from src.games.dao import wordlists_dao
+
+    wl = await wordlists_dao.get_wordlist_by_id(list_id, user['userId'])
+    if wl:
+        await wordlists_dao.delete_wordlist(list_id, user['userId'])
+    return None

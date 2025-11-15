@@ -18,6 +18,14 @@ class LessonProcessor:
         self.vocab_extractor = VocabularyExtractor()
         self.mistake_extractor = MistakeExtractor()
         self.sentence_extractor = SentenceExtractor()
+        
+        # Initialize quality checker
+        try:
+            from .utils.quality_checker import QualityChecker
+            self.quality_checker = QualityChecker()
+        except Exception as e:
+            logger.warning(f"Could not initialize quality checker: {e}")
+            self.quality_checker = None
     
     def process_lesson(self, transcript: str, lesson_number: int = 1) -> Dict:
         """Process lesson transcript and generate exercises"""
@@ -58,17 +66,42 @@ class LessonProcessor:
             total = len(flashcards) + len(cloze_items) + len(grammar_questions) + len(sentence_items)
             logger.info(f"Generated {total} exercises: {len(flashcards)} flashcards, {len(cloze_items)} cloze, {len(grammar_questions)} grammar, {len(sentence_items)} sentence")
             
+            # Step 5: Quality check (if available)
+            quality_passed = True
+            if self.quality_checker:
+                try:
+                    # Convert to format expected by quality checker (fill_in_blank, flashcards, spelling)
+                    quality_passed = self.quality_checker.validate_exercises(
+                        cloze_items,  # treat cloze as fill-in-blank
+                        flashcards,
+                        []  # no spelling in this flow
+                    )
+                    if not quality_passed:
+                        logger.warning("Quality check failed - review recommended")
+                except Exception as e:
+                    logger.warning(f"Quality check error: {e}")
+            
+            # Convert dataclass objects to dicts (if they have to_dict method)
+            def to_dict_safe(item):
+                if hasattr(item, 'to_dict'):
+                    return item.to_dict()
+                elif isinstance(item, dict):
+                    return item
+                else:
+                    return item.__dict__ if hasattr(item, '__dict__') else item
+            
             return {
-                'flashcards': flashcards,
-                'cloze': cloze_items,
-                'grammar': grammar_questions,
-                'sentence': sentence_items,
+                'flashcards': [to_dict_safe(f) for f in flashcards],
+                'cloze': [to_dict_safe(c) for c in cloze_items],
+                'grammar': [to_dict_safe(g) for g in grammar_questions],
+                'sentence': [to_dict_safe(s) for s in sentence_items],
                 'metadata': {
                     'lesson_number': lesson_number,
                     'total_exercises': total,
                     'vocabulary_count': len(vocabulary),
                     'mistakes_count': len(mistakes),
                     'sentences_count': len(sentences),
+                    'quality_passed': quality_passed,
                     'status': 'success'
                 }
             }

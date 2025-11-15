@@ -10,11 +10,11 @@ class WordCreate(BaseModel):
     difficulty: Optional[str]
 
 class WordUpdate(BaseModel):
-    word: Optional[str]
-    translation: Optional[str]
-    notes: Optional[str]
-    isFavorite: Optional[bool]
-    difficulty: Optional[str]
+    word: Optional[str] = Field(None)
+    translation: Optional[str] = Field(None)
+    notes: Optional[str] = Field(None)
+    isFavorite: Optional[bool] = Field(None)
+    difficulty: Optional[str] = Field(None)
 
 class WordOut(BaseModel):
     id: str

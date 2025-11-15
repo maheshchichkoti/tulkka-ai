@@ -8,7 +8,7 @@ from ...time_utils import utc_now_iso
 import logging
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/v1", tags=["Lesson Processing"])
+router = APIRouter(prefix="/v1", tags=["Lesson Processing"])
 
 lesson_processor = LessonProcessor()
 supabase = SupabaseClient()
@@ -26,6 +26,10 @@ class ZoomLessonInput(BaseModel):
     class_id: str
     date: str = Field(..., pattern=r'^\d{4}-\d{2}-\d{2}$')
     lesson_number: int = Field(1, ge=1)
+    meeting_id: Optional[str] = None
+    start_time: Optional[str] = None  # Format: "HH:MM"
+    end_time: Optional[str] = None    # Format: "HH:MM"
+    teacher_email: Optional[str] = None
 
 @router.post("/process")
 def process_transcript(payload: TranscriptInput):

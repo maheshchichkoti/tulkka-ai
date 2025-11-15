@@ -30,6 +30,15 @@ class Flashcard:
     translation: str
     notes: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'id': self.id,
+            'word': self.word,
+            'translation': self.translation,
+            'notes': self.notes,
+            'metadata': self.metadata
+        }
 
 @dataclass
 class ClozeItem:
@@ -42,6 +51,19 @@ class ClozeItem:
     correct_answers: List[str]
     explanation: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'id': self.id,
+            'topic': self.topic,
+            'lesson': self.lesson,
+            'difficulty': self.difficulty,
+            'text_parts': self.text_parts,
+            'options': self.options,
+            'correct_answers': self.correct_answers,
+            'explanation': self.explanation,
+            'metadata': self.metadata
+        }
 
 @dataclass
 class GrammarQuestion:
@@ -53,6 +75,18 @@ class GrammarQuestion:
     correct_index: int
     explanation: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'id': self.id,
+            'category': self.category,
+            'difficulty': self.difficulty,
+            'prompt': self.prompt,
+            'options': self.options,
+            'correct_index': self.correct_index,
+            'explanation': self.explanation,
+            'metadata': self.metadata
+        }
 
 @dataclass
 class SentenceItem:
@@ -64,6 +98,18 @@ class SentenceItem:
     distractors: List[str]
     hint: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'id': self.id,
+            'english_sentence': self.english_sentence,
+            'translation': self.translation,
+            'sentence_tokens': self.sentence_tokens,
+            'accepted_sequences': self.accepted_sequences,
+            'distractors': self.distractors,
+            'hint': self.hint,
+            'metadata': self.metadata
+        }
 
 # Helper: simple noun extraction (pick capitalized words or frequent content words)
 def _pick_candidate_words(paragraph: str, limit: int = 10) -> List[str]:

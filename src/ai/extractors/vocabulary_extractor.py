@@ -1,6 +1,9 @@
 """Vocabulary extraction from lesson transcripts"""
 from typing import List, Dict
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 class VocabularyExtractor:
     """Extracts key vocabulary and phrases from lessons"""
@@ -12,9 +15,28 @@ class VocabularyExtractor:
             'can', 'could', 'should', 'may', 'might', 'must', 'i', 'you',
             'he', 'she', 'it', 'we', 'they', 'this', 'that', 'these', 'those'
         }
+        
+        # Try to initialize Gemini helper
+        try:
+            from ..utils.gemini_helper import GeminiHelper
+            self.gemini_helper = GeminiHelper()
+        except Exception as e:
+            logger.warning(f"Could not initialize Gemini helper: {e}")
+            self.gemini_helper = None
     
     def extract(self, transcript: str) -> List[Dict[str, str]]:
         """Extract vocabulary items from transcript"""
+        # Try Gemini AI first if available
+        if self.gemini_helper and self.gemini_helper.enabled:
+            try:
+                ai_vocab = self.gemini_helper.extract_vocabulary_with_ai(transcript, max_words=15)
+                if ai_vocab:
+                    logger.info(f"Using {len(ai_vocab)} AI-extracted vocabulary items")
+                    return ai_vocab
+            except Exception as e:
+                logger.warning(f"Gemini extraction failed, falling back to rule-based: {e}")
+        
+        # Fallback to rule-based extraction
         vocabulary = []
         seen = set()
         

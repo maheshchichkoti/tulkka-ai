@@ -87,17 +87,28 @@ def process_row(row: Dict[str, Any]):
                 raise
 
         elif audio_file:
-            # For production, send audio_url to AssemblyAI or your transcriber service.
-            # Here we attempt a download and store the raw bytes in metadata and fail safe.
+            # Use AssemblyAI for audio transcription
             download_url = audio_file.get("download_url")
             try:
-                audio_bytes = zoom_api.download_file(download_url)
-                # In production: call assemblyai/upload + transcribe; placeholder below
-                # For now, store that audio was retrieved and leave transcript empty
-                transcription_source = "audio_file_downloaded"
-                # Optionally, upload to transcription service and wait for result.
+                from ..ai.utils.assemblyai_helper import AssemblyAIHelper
+                aai_helper = AssemblyAIHelper()
+                
+                if aai_helper.enabled:
+                    logger.info("Transcribing audio with AssemblyAI for row %s", row_id)
+                    result = aai_helper.transcribe_audio(download_url)
+                    if result and result.get('text'):
+                        transcript_text = result['text']
+                        transcription_source = "assemblyai"
+                        logger.info("AssemblyAI transcription completed: %d chars", len(transcript_text))
+                    else:
+                        logger.warning("AssemblyAI transcription failed for row %s", row_id)
+                        transcription_source = "audio_file_no_transcript"
+                else:
+                    logger.warning("AssemblyAI not available, downloading audio only")
+                    audio_bytes = zoom_api.download_file(download_url)
+                    transcription_source = "audio_file_downloaded"
             except Exception:
-                logger.exception("Failed downloading audio for row %s", row_id)
+                logger.exception("Failed processing audio for row %s", row_id)
                 raise
         else:
             logger.warning("No transcript or audio found for row %s", row_id)

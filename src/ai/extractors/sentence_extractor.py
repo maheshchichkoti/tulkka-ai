@@ -1,6 +1,9 @@
 """Sentence extraction from lesson transcripts"""
 from typing import List, Dict
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 class SentenceExtractor:
     """Extracts practice-worthy sentences from lessons"""
@@ -8,9 +11,28 @@ class SentenceExtractor:
     def __init__(self):
         self.min_words = 4
         self.max_words = 20
+        
+        # Try to initialize Gemini helper
+        try:
+            from ..utils.gemini_helper import GeminiHelper
+            self.gemini_helper = GeminiHelper()
+        except Exception as e:
+            logger.warning(f"Could not initialize Gemini helper: {e}")
+            self.gemini_helper = None
     
     def extract(self, transcript: str) -> List[Dict[str, str]]:
         """Extract sentences suitable for practice"""
+        # Try Gemini AI first if available
+        if self.gemini_helper and self.gemini_helper.enabled:
+            try:
+                ai_sentences = self.gemini_helper.extract_sentences_with_ai(transcript, max_sentences=15)
+                if ai_sentences:
+                    logger.info(f"Using {len(ai_sentences)} AI-extracted sentences")
+                    return ai_sentences
+            except Exception as e:
+                logger.warning(f"Gemini extraction failed, falling back to rule-based: {e}")
+        
+        # Fallback to rule-based extraction
         sentences = []
         seen = set()
         

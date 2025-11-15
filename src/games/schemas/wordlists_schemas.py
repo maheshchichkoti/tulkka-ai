@@ -12,9 +12,9 @@ class WordListCreate(WordListBase):
     pass
 
 class WordListUpdate(BaseModel):
-    name: Optional[str]
-    description: Optional[str]
-    isFavorite: Optional[bool]
+    name: Optional[str] = Field(None)
+    description: Optional[str] = Field(None)
+    isFavorite: Optional[bool] = Field(None)
 
 class WordListOut(BaseModel):
     id: str

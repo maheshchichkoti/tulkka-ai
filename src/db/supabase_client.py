@@ -67,3 +67,10 @@ class SupabaseClient:
             raise RuntimeError("Supabase client not initialized")
         resp = self.client.table("zoom_summaries").select("*").eq("status", "pending").order("created_at", desc=False).limit(limit).execute()
         return getattr(resp, "data", []) or []
+    
+    def get_zoom_summary_by_id(self, zoom_summary_id: int) -> Optional[Dict[str, Any]]:
+        """Get a specific zoom summary by ID."""
+        if not self.client:
+            raise RuntimeError("Supabase client not initialized")
+        resp = self.client.table("zoom_summaries").select("*").eq("id", zoom_summary_id).limit(1).execute()
+        return (getattr(resp, "data", []) or [None])[0]

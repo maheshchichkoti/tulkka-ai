@@ -36,21 +36,29 @@ class FlashcardsDAO:
 
     async def insert_result(self, session_id: str, word_id: str, is_correct: bool, attempts: int, time_ms: int):
         q = """
-        INSERT INTO flashcard_results (id, session_id, word_id, is_correct, attempts, time_spent_ms, created_at)
-        VALUES (UUID(), %s, %s, %s, %s, %s, UTC_TIMESTAMP())
+        INSERT INTO flashcard_results (session_id, word_id, is_correct, attempts, time_spent_ms, created_at)
+        VALUES (%s, %s, %s, %s, %s, UTC_TIMESTAMP())
         """
         await execute_query(q, (session_id, word_id, int(is_correct), attempts, time_ms))
 
     async def update_word_stats(self, word_id: str, is_correct: bool):
+        # First update counts
         q = """
         UPDATE words
         SET practice_count = practice_count + 1,
             correct_count = correct_count + %s,
-            accuracy = ROUND(100 * correct_count / GREATEST(practice_count,1)),
             last_practiced = UTC_TIMESTAMP()
         WHERE id = %s
         """
         await execute_query(q, (1 if is_correct else 0, word_id))
+
+        # Then update accuracy based on new counts
+        q2 = """
+        UPDATE words
+        SET accuracy = ROUND(100.0 * correct_count / GREATEST(practice_count, 1))
+        WHERE id = %s
+        """
+        await execute_query(q2, (word_id,))
 
     async def update_session_progress(self, session_id: str, is_correct: bool):
         q = """
