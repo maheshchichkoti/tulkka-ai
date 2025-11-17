@@ -20,6 +20,15 @@ import random
 from typing import List, Dict, Any, Optional, Callable, Tuple
 from dataclasses import dataclass
 
+# Optional: Translation for fallback
+try:
+    from deep_translator import GoogleTranslator
+    translator = GoogleTranslator(source='en', target='ar')  # English to Arabic
+    TRANSLATE_AVAILABLE = True
+except ImportError:
+    TRANSLATE_AVAILABLE = False
+    translator = None
+
 logger = logging.getLogger(__name__)
 
 # Data models (simple dataclasses)
@@ -166,7 +175,14 @@ def generate_flashcards_from_text(
         for w in candidates:
             if len(cards) >= limit:
                 break
-            cards.append(Flashcard(id=str(uuid.uuid4()), word=w, translation="", notes="autogen"))
+            # Try to translate if translator available
+            translation = ""
+            if TRANSLATE_AVAILABLE and translator:
+                try:
+                    translation = translator.translate(w)
+                except Exception:
+                    logger.warning(f"Translation failed for '{w}'")
+            cards.append(Flashcard(id=str(uuid.uuid4()), word=w, translation=translation, notes="autogen"))
         if len(cards) >= limit:
             break
     return cards
