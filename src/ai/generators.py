@@ -20,10 +20,10 @@ import random
 from typing import List, Dict, Any, Optional, Callable, Tuple
 from dataclasses import dataclass
 
-# Optional: Translation for fallback
+# Optional: Translation for fallback (default English → Hebrew)
 try:
     from deep_translator import GoogleTranslator
-    translator = GoogleTranslator(source='en', target='ar')  # English to Arabic
+    translator = GoogleTranslator(source='en', target='he')
     TRANSLATE_AVAILABLE = True
 except ImportError:
     TRANSLATE_AVAILABLE = False
