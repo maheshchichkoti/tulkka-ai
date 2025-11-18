@@ -12,25 +12,25 @@ class SentenceExtractor:
         self.min_words = 4
         self.max_words = 20
         
-        # Try to initialize Gemini helper
+        # Try to initialize Groq helper
         try:
-            from ..utils.gemini_helper import GeminiHelper
-            self.gemini_helper = GeminiHelper()
+            from ..utils.groq_helper import GroqHelper
+            self.ai_helper = GroqHelper()
         except Exception as e:
-            logger.warning(f"Could not initialize Gemini helper: {e}")
-            self.gemini_helper = None
+            logger.warning(f"Could not initialize Groq helper: {e}")
+            self.ai_helper = None
     
     def extract(self, transcript: str) -> List[Dict[str, str]]:
         """Extract sentences suitable for practice"""
-        # Try Gemini AI first if available
-        if self.gemini_helper and self.gemini_helper.enabled:
+        # Try Groq AI first if available
+        if self.ai_helper and self.ai_helper.enabled:
             try:
-                ai_sentences = self.gemini_helper.extract_sentences_with_ai(transcript, max_sentences=15)
+                ai_sentences = self.ai_helper.extract_sentences(transcript, max_sentences=15)
                 if ai_sentences:
-                    logger.info(f"Using {len(ai_sentences)} AI-extracted sentences")
+                    logger.info(f"Using {len(ai_sentences)} Groq AI sentences")
                     return ai_sentences
             except Exception as e:
-                logger.warning(f"Gemini extraction failed, falling back to rule-based: {e}")
+                logger.warning(f"Groq extraction failed, falling back to rule-based: {e}")
         
         # Fallback to rule-based extraction
         sentences = []

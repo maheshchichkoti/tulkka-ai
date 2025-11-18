@@ -16,25 +16,25 @@ class VocabularyExtractor:
             'he', 'she', 'it', 'we', 'they', 'this', 'that', 'these', 'those'
         }
         
-        # Try to initialize Gemini helper
+        # Try to initialize Groq helper
         try:
-            from ..utils.gemini_helper import GeminiHelper
-            self.gemini_helper = GeminiHelper()
+            from ..utils.groq_helper import GroqHelper
+            self.ai_helper = GroqHelper()
         except Exception as e:
-            logger.warning(f"Could not initialize Gemini helper: {e}")
-            self.gemini_helper = None
+            logger.warning(f"Could not initialize Groq helper: {e}")
+            self.ai_helper = None
     
     def extract(self, transcript: str) -> List[Dict[str, str]]:
         """Extract vocabulary items from transcript"""
-        # Try Gemini AI first if available
-        if self.gemini_helper and self.gemini_helper.enabled:
+        # Try Groq AI first if available
+        if self.ai_helper and self.ai_helper.enabled:
             try:
-                ai_vocab = self.gemini_helper.extract_vocabulary_with_ai(transcript, max_words=15)
+                ai_vocab = self.ai_helper.extract_vocabulary(transcript, max_words=15)
                 if ai_vocab:
-                    logger.info(f"Using {len(ai_vocab)} AI-extracted vocabulary items")
+                    logger.info(f"Using {len(ai_vocab)} Groq AI vocabulary items")
                     return ai_vocab
             except Exception as e:
-                logger.warning(f"Gemini extraction failed, falling back to rule-based: {e}")
+                logger.warning(f"Groq extraction failed, falling back to rule-based: {e}")
         
         # Fallback to rule-based extraction
         vocabulary = []

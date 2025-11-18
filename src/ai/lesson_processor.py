@@ -167,7 +167,13 @@ class LessonProcessor:
     
     def _generate_cloze(self, paragraphs: List[str], vocabulary: List[Dict], limit: int) -> List[Dict]:
         """Generate cloze exercises"""
-        return generate_cloze_from_text(paragraphs, max_items=limit, difficulty='medium')
+        vocab_words = [item.get('word') for item in vocabulary if item.get('word')]
+        return generate_cloze_from_text(
+            paragraphs,
+            max_items=limit,
+            difficulty='medium',
+            vocab_words=vocab_words
+        )
     
     def _generate_grammar(self, paragraphs: List[str], mistakes: List[Dict], limit: int) -> List[Dict]:
         """Generate grammar questions"""

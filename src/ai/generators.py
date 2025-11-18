@@ -192,7 +192,8 @@ def generate_cloze_from_text(
     *,
     max_items: int = 10,
     difficulty: str = "medium",
-    llm_fn: Optional[Callable[[str, str], List[Dict[str, Any]]]] = None
+    llm_fn: Optional[Callable[[str, str], List[Dict[str, Any]]]] = None,
+    vocab_words: Optional[List[str]] = None
 ) -> List[ClozeItem]:
     """
     Heuristic cloze generator: choose sentences and mask a content word to create options.
@@ -218,11 +219,30 @@ def generate_cloze_from_text(
             correct = words[idx].strip(".,;:()\"'")
             before = " ".join(words[:idx]).strip()
             after = " ".join(words[idx+1:]).strip()
-            # build distractors: small variations
-            distractors = [correct]
-            distractors += [correct[::-1][:len(correct)] for _ in range(2)]  # silly fallback distractors
-            # ensure uniqueness
-            options = list(dict.fromkeys(distractors))[:3]
+            # build distractors from sentence + vocab pool
+            candidate_pool = [w.strip(".,;:()\"'") for i,w in enumerate(words) if i != idx and len(w) > 3]
+            if vocab_words:
+                candidate_pool.extend(vocab_words)
+            # filter similarity/duplicates
+            filtered = []
+            seen = set()
+            for cand in candidate_pool:
+                cand_clean = cand.strip()
+                if not cand_clean or cand_clean.lower() == correct.lower():
+                    continue
+                if abs(len(cand_clean) - len(correct)) > 4:
+                    continue
+                if cand_clean.lower() in seen:
+                    continue
+                filtered.append(cand_clean)
+                seen.add(cand_clean.lower())
+                if len(filtered) >= 3:
+                    break
+            options = [correct] + filtered
+            if len(options) < 3:
+                # fallback simple permutations
+                options.append(correct.lower())
+            options = options[:4]
             items.append(ClozeItem(
                 id=str(uuid.uuid4()),
                 topic=None,
@@ -231,7 +251,7 @@ def generate_cloze_from_text(
                 text_parts=[before, after],
                 options=[options],
                 correct_answers=[correct],
-                explanation=None,
+                explanation=f"'{correct}' fits best because it matches the sentence meaning and tense.",
                 metadata={"source": "heuristic"}
             ))
         if len(items) >= max_items:
@@ -263,6 +283,10 @@ def generate_grammar_from_text(
                     prompt = " ".join(tokens[:i] + ["_____"] + tokens[i+1:])
                     opts = [tok, "did", "do", "does"]
                     correct_index = 0
+                    explanation = "Use '{}' because it agrees with the subject '{}' in this sentence.".format(
+                        tok,
+                        tokens[i - 1] if i > 0 else ""
+                    )
                     questions.append(GrammarQuestion(
                         id=str(uuid.uuid4()),
                         category=None,
@@ -270,7 +294,7 @@ def generate_grammar_from_text(
                         prompt=prompt,
                         options=opts,
                         correct_index=correct_index,
-                        explanation=None,
+                        explanation=explanation.strip(),
                         metadata={"source":"heuristic"}
                     ))
                     break
@@ -294,19 +318,23 @@ def generate_sentence_items_from_text(
     items: List[SentenceItem] = []
     for p in paragraphs:
         sents = [s.strip() for s in p.split(".") if s.strip()]
+        paragraph_tokens = [w.strip(".,;:()\"'") for w in p.split() if len(w) > 3]
         for s in sents:
             if len(items) >= max_items:
                 break
             tokens = [t.strip() for t in s.split() if t.strip()]
             if len(tokens) < 3 or len(tokens) > 25:
                 continue
+            distractor_candidates = [w for w in paragraph_tokens if w and w not in tokens]
+            random.shuffle(distractor_candidates)
+            distractors = distractor_candidates[:3]
             items.append(SentenceItem(
                 id=str(uuid.uuid4()),
                 english_sentence=s + ".",
                 translation=None,
                 sentence_tokens=tokens,
                 accepted_sequences=[tokens],
-                distractors=[],
+                distractors=distractors,
                 hint=None,
                 metadata={"source":"heuristic"}
             ))
