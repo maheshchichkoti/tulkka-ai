@@ -8,7 +8,6 @@ from .errors import APIError, api_error_handler, unhandled_handler
 from .middlewares import JWTAuthMiddleware, RequestLogMiddleware, IdempotencyMiddleware
 from .router_root import router as root_router
 from .routes.lessons_routes import router as lessons_router
-from .routes.zoom_webhook_routes import router as zoom_webhook_router
 from ..games.routes.flashcards_routes import router as flashcards_router
 from ..games.routes.spelling_routes import router as spelling_router
 from ..games.routes.cloze_routes import router as cloze_router
@@ -51,7 +50,6 @@ def create_app() -> FastAPI:
     # Routers
     app.include_router(root_router, prefix="/v1")
     app.include_router(lessons_router)
-    app.include_router(zoom_webhook_router)
     app.include_router(flashcards_router)
     app.include_router(spelling_router)
     app.include_router(cloze_router)

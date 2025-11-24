@@ -19,10 +19,58 @@ BATCH_SIZE = settings.WORKER_BATCH_SIZE
 MAX_RETRIES = settings.WORKER_MAX_RETRIES
 
 def fetch_pending(limit: int = BATCH_SIZE):
+    """Fetch rows ready for processing, normalizing legacy statuses if needed."""
     try:
-        return supabase.find_pending_summaries(limit)
+        pending = supabase.find_pending_summaries(limit)
+
+        awaiting = []
+        normalized = []
+        if supabase.client:
+            awaiting = _fetch_by_status("awaiting_exercises", limit)
+            normalized = _normalize_pending_transcript(limit)
+
+        if awaiting:
+            pending.extend(awaiting)
+        if normalized:
+            pending.extend(normalized)
+
+        return pending
     except Exception:
         logger.exception("Failed fetching pending summaries")
+        return []
+
+
+def _fetch_by_status(status: str, limit: int):
+    resp = supabase.client.table("zoom_summaries").select("*").eq("status", status).order("created_at", desc=False).limit(limit).execute()
+    return getattr(resp, "data", []) or []
+
+
+def _normalize_pending_transcript(limit: int):
+    """Automatically convert legacy 'pending_transcript' rows into supported statuses."""
+    if not supabase.client:
+        return []
+
+    try:
+        rows = _fetch_by_status("pending_transcript", limit)
+        if not rows:
+            return []
+
+        normalized = []
+        for row in rows:
+            transcript = row.get("transcript") or row.get("transcription")
+            new_status = "awaiting_exercises" if transcript else "pending"
+            update_payload = {"status": new_status, "updated_at": utc_now_iso()}
+            try:
+                supabase.update_zoom_summary(row["id"], update_payload)
+                row["status"] = new_status
+                normalized.append(row)
+            except Exception:
+                logger.warning("Failed to normalize row %s", row.get("id"))
+        if normalized:
+            logger.info("Normalized %d pending_transcript rows", len(normalized))
+        return normalized
+    except Exception:
+        logger.exception("Failed fetching pending_transcript summaries")
         return []
 
 def claim_summary(row_id: Any) -> bool:
@@ -67,66 +115,73 @@ def process_row(row: Dict[str, Any]):
             logger.debug("Could not claim row %s", row_id)
             return
 
-        # Determine best available file to fetch
-        files = row.get("recording_files") or row.get("files") or []
-        transcript_file = has_transcript_file(files)
-        audio_file = has_audio_files(files)
-
-        transcript_text = ""
-        transcription_source = None
-
-        if transcript_file:
-            download_url = transcript_file.get("download_url")
-            try:
-                content_bytes = zoom_api.download_file(download_url)
-                content = content_bytes.decode("utf-8", errors="ignore")
-                transcript_text = clean_vtt_transcript(content)
-                transcription_source = "zoom_native_transcript"
-            except Exception:
-                logger.exception("Failed downloading transcript file for row %s", row_id)
-                raise
-
-        elif audio_file:
-            # Use AssemblyAI for audio transcription
-            download_url = audio_file.get("download_url")
-            try:
-                from ..ai.utils.assemblyai_helper import AssemblyAIHelper
-                aai_helper = AssemblyAIHelper()
-                
-                if aai_helper.enabled:
-                    logger.info("Transcribing audio with AssemblyAI for row %s", row_id)
-                    result = aai_helper.transcribe_audio(download_url)
-                    if result and result.get('text'):
-                        transcript_text = result['text']
-                        transcription_source = "assemblyai"
-                        logger.info("AssemblyAI transcription completed: %d chars", len(transcript_text))
-                    else:
-                        logger.warning("AssemblyAI transcription failed for row %s", row_id)
-                        transcription_source = "audio_file_no_transcript"
-                else:
-                    logger.warning("AssemblyAI not available, downloading audio only")
-                    audio_bytes = zoom_api.download_file(download_url)
-                    transcription_source = "audio_file_downloaded"
-            except Exception:
-                logger.exception("Failed processing audio for row %s", row_id)
-                raise
+        # Check if transcript already exists (from n8n)
+        existing_transcript = row.get("transcript") or row.get("transcription")
+        if existing_transcript and len(existing_transcript) > 100:
+            logger.info("Using existing transcript for row %s (%d chars)", row_id, len(existing_transcript))
+            transcript_text = existing_transcript
+            transcription_source = row.get("transcript_source") or row.get("transcription_source") or "n8n_assemblyai"
         else:
-            logger.warning("No transcript or audio found for row %s", row_id)
-            raise RuntimeError("No transcript or audio available")
+            # Determine best available file to fetch
+            files = row.get("recording_files") or row.get("files") or []
+            transcript_file = has_transcript_file(files)
+            audio_file = has_audio_files(files)
 
-        # Minimal validation
-        if not transcript_text and transcription_source != "audio_file_downloaded":
-            raise RuntimeError("Transcript extraction failed or empty")
+            transcript_text = ""
+            transcription_source = None
 
-        # Persist transcript into zoom_summaries (overwrite or update)
-        update_payload = {
-            "transcript": transcript_text,
-            "transcript_length": len(transcript_text or ""),
-            "transcript_source": transcription_source or "unknown",
-            "transcription_status": "completed" if transcript_text else "pending",
-            "processing_completed_at": utc_now_iso()
-        }
-        supabase.update_zoom_summary(row_id, update_payload)
+            if transcript_file:
+                download_url = transcript_file.get("download_url")
+                try:
+                    content_bytes = zoom_api.download_file(download_url)
+                    content = content_bytes.decode("utf-8", errors="ignore")
+                    transcript_text = clean_vtt_transcript(content)
+                    transcription_source = "zoom_native_transcript"
+                except Exception:
+                    logger.exception("Failed downloading transcript file for row %s", row_id)
+                    raise
+
+            elif audio_file:
+                # Use AssemblyAI for audio transcription
+                download_url = audio_file.get("download_url")
+                try:
+                    from ..ai.utils.assemblyai_helper import AssemblyAIHelper
+                    aai_helper = AssemblyAIHelper()
+                    
+                    if aai_helper.enabled:
+                        logger.info("Transcribing audio with AssemblyAI for row %s", row_id)
+                        result = aai_helper.transcribe_audio(download_url)
+                        if result and result.get('text'):
+                            transcript_text = result['text']
+                            transcription_source = "assemblyai"
+                            logger.info("AssemblyAI transcription completed: %d chars", len(transcript_text))
+                        else:
+                            logger.warning("AssemblyAI transcription failed for row %s", row_id)
+                            transcription_source = "audio_file_no_transcript"
+                    else:
+                        logger.warning("AssemblyAI not available, downloading audio only")
+                        audio_bytes = zoom_api.download_file(download_url)
+                        transcription_source = "audio_file_downloaded"
+                except Exception:
+                    logger.exception("Failed processing audio for row %s", row_id)
+                    raise
+            else:
+                logger.warning("No transcript or audio found for row %s", row_id)
+                raise RuntimeError("No transcript or audio available")
+
+            # Minimal validation
+            if not transcript_text and transcription_source != "audio_file_downloaded":
+                raise RuntimeError("Transcript extraction failed or empty")
+
+            # Persist transcript into zoom_summaries (overwrite or update)
+            update_payload = {
+                "transcript": transcript_text,
+                "transcript_length": len(transcript_text or ""),
+                "transcript_source": transcription_source or "unknown",
+                "transcription_status": "completed" if transcript_text else "pending",
+                "processing_completed_at": utc_now_iso()
+            }
+            supabase.update_zoom_summary(row_id, update_payload)
 
         # Call AI orchestrator to generate exercises
         try:

@@ -148,7 +148,7 @@ Instructions:
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.4,
-                max_output_tokens=1024,
+                max_tokens=1024,  # Fixed: Groq uses 'max_tokens', not 'max_output_tokens'
             )
             return resp.choices[0].message.content if resp.choices else None
         except Exception as exc:  # pragma: no cover - network failure

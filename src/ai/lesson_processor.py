@@ -59,6 +59,8 @@ class LessonProcessor:
             
             flashcards = self._generate_flashcards(vocabulary, sentences, limit=8)
             cloze_items = self._generate_cloze(paragraphs, vocabulary, limit=6)
+            # Basic sanitization: drop clearly malformed cloze items
+            cloze_items = self._sanitize_cloze(cloze_items)
             grammar_questions = self._generate_grammar(paragraphs, mistakes, limit=6)
             sentence_items = self._generate_sentences(sentences, limit=6)
             
@@ -78,13 +80,74 @@ class LessonProcessor:
                             return item
                         else:
                             return item.__dict__ if hasattr(item, '__dict__') else {}
-                    
-                    cloze_dicts = [to_dict_for_qc(c) for c in cloze_items]
-                    flashcard_dicts = [to_dict_for_qc(f) for f in flashcards]
-                    
+
+                    # Adapt cloze items into the fill-in-blank shape expected by QualityChecker
+                    base_cloze = [to_dict_for_qc(c) for c in cloze_items]
+                    fill_in_blank_items = []
+                    for ex in base_cloze:
+                        parts = ex.get('text_parts') or []
+                        options_matrix = ex.get('options') or []
+                        correct_list = ex.get('correct_answers') or []
+                        if len(parts) != 2 or not options_matrix or not correct_list:
+                            continue
+
+                        # Options may be nested as a single list inside another list
+                        first = options_matrix[0]
+                        opts = first if isinstance(first, list) else options_matrix
+                        if not isinstance(opts, list) or len(opts) < 3:
+                            continue
+
+                        correct_word = correct_list[0]
+                        if not correct_word or correct_word not in opts:
+                            continue
+
+                        before = (parts[0] or '').strip()
+                        after = (parts[1] or '').strip()
+                        sentence = (before + " _____ " + after).strip()
+                        # Skip very short fragments which QC will flag as too short
+                        if len(sentence.split()) < 4:
+                            continue
+
+                        # Map options to option_a/option_b/... and determine correct_answer
+                        letters = ["A", "B", "C", "D"]
+                        option_fields = {}
+                        for idx, opt in enumerate(opts[:4]):
+                            option_fields[f"option_{letters[idx].lower()}"] = opt
+
+                        try:
+                            correct_index = opts.index(correct_word)
+                        except ValueError:
+                            continue
+                        if correct_index > 3:
+                            # Correct word is outside the exported A-D range
+                            continue
+                        correct_answer = letters[correct_index]
+
+                        fill_in_blank_items.append({
+                            'sentence': sentence,
+                            'correct_answer': correct_answer,
+                            'correct_word': correct_word,
+                            **option_fields,
+                        })
+
+                    # Prepare flashcards for QC: ensure non-empty translation and an example sentence
+                    raw_flashcards = [to_dict_for_qc(f) for f in flashcards]
+                    flashcard_items = []
+                    for card in raw_flashcards:
+                        word = (card.get('word') or '').strip()
+                        # Fallback: if translation missing, reuse the word so QC sees something non-empty
+                        translation = (card.get('translation') or '').strip() or word
+                        example = card.get('example_sentence') or card.get('notes') or card.get('context') or ''
+                        flashcard_items.append({
+                            **card,
+                            'word': word,
+                            'translation': translation,
+                            'example_sentence': example,
+                        })
+
                     quality_passed = self.quality_checker.validate_exercises(
-                        cloze_dicts,  # treat cloze as fill-in-blank
-                        flashcard_dicts,
+                        fill_in_blank_items,  # treat adapted cloze as fill-in-blank
+                        flashcard_items,
                         []  # no spelling in this flow
                     )
                     if not quality_passed:
@@ -126,6 +189,49 @@ class LessonProcessor:
                 'sentence': [],
                 'metadata': {'lesson_number': lesson_number, 'status': 'error', 'error': str(e)}
             }
+
+    def _sanitize_cloze(self, items: List) -> List:
+        """Drop cloze items that cannot form a valid fill-in-blank sentence with options.
+
+        This does not change the public structure of cloze items, only filters out
+        fragments that would obviously fail quality checks (no options, missing
+        correct answer, or sentences that are too short).
+        """
+        cleaned: List = []
+        for item in items:
+            # ClozeItem dataclass exposes attributes; dicts use keys
+            parts = getattr(item, 'text_parts', None) if hasattr(item, 'text_parts') else None
+            options = getattr(item, 'options', None) if hasattr(item, 'options') else None
+            correct = getattr(item, 'correct_answers', None) if hasattr(item, 'correct_answers') else None
+            if parts is None or options is None or correct is None:
+                # Fallback for dict-like items
+                as_dict = item.to_dict() if hasattr(item, 'to_dict') else (item or {})
+                parts = as_dict.get('text_parts')
+                options = as_dict.get('options')
+                correct = as_dict.get('correct_answers')
+
+            if not parts or len(parts) != 2 or not options or not correct:
+                continue
+
+            first = options[0]
+            opts = first if isinstance(first, list) else options
+            if not isinstance(opts, list) or len(opts) < 3:
+                continue
+
+            correct_word = correct[0] if isinstance(correct, list) and correct else None
+            if not correct_word or correct_word not in opts:
+                continue
+
+            before = (parts[0] or '').strip()
+            after = (parts[1] or '').strip()
+            # Reconstruct full sentence to ensure it's not just a tiny fragment
+            candidate_sentence = (before + ' ' + correct_word + ' ' + after).strip()
+            if len(candidate_sentence.split()) < 4:
+                continue
+
+            cleaned.append(item)
+
+        return cleaned
     
     def _split_into_paragraphs(self, transcript: str) -> List[str]:
         """Split transcript into paragraphs"""

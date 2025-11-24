@@ -36,6 +36,13 @@ class Settings:
     ASSEMBLYAI_API_KEY: Optional[str] = os.getenv("ASSEMBLYAI_API_KEY")
     ASSEMBLYAI_BASE_URL: str = os.getenv("ASSEMBLYAI_BASE_URL", "https://api.assemblyai.com/v2")
 
+    # n8n integration
+    N8N_WEBHOOK_URL: Optional[str] = os.getenv("N8N_WEBHOOK_URL")
+
+    # Groq AI
+    GROQ_API_KEY: Optional[str] = os.getenv("GROQ_API_KEY")
+    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama3-70b-8192")
+
     # Worker tuning
     WORKER_POLL_INTERVAL_SECONDS: int = int(os.getenv("WORKER_POLL_INTERVAL_SECONDS", "300"))
     WORKER_BATCH_SIZE: int = int(os.getenv("WORKER_BATCH_SIZE", "10"))
