@@ -153,8 +153,14 @@ Instructions:
             return resp.choices[0].message.content if resp.choices else None
         except Exception as exc:  # pragma: no cover - network failure
             msg = str(exc)
+            # Gracefully handle quota and decommissioned models
             if "429" in msg or "rate limit" in msg.lower():
                 logger.warning("Groq quota exceeded: %s", msg)
+            elif "model_decommissioned" in msg or "model `llama3-70b-8192` has been decommissioned" in msg:
+                logger.error("Groq model decommissioned: %s. Disabling Groq helper and falling back to heuristics.", msg)
+                # Disable further Groq usage so pipeline keeps working with heuristic generators
+                self.enabled = False
+                self.client = None
             else:
                 logger.error("Groq chat request failed: %s", msg)
             return None

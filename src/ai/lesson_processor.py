@@ -3,10 +3,10 @@ from typing import Dict, List
 import logging
 from .extractors import VocabularyExtractor, MistakeExtractor, SentenceExtractor
 from .generators import (
-    generate_flashcards_from_text,
-    generate_cloze_from_text,
-    generate_grammar_from_text,
-    generate_sentence_items_from_text
+    generate_flashcards,
+    generate_cloze,
+    generate_grammar,
+    generate_sentence_items
 )
 
 logger = logging.getLogger(__name__)
@@ -52,17 +52,13 @@ class LessonProcessor:
             logger.info(f"Extracted: {len(vocabulary)} vocab, {len(mistakes)} mistakes, {len(sentences)} sentences")
             
             # Step 2: Prepare text for generators
-            paragraphs = self._split_into_paragraphs(transcript)
-            
             # Step 3: Generate exercises with limits
             logger.info("Generating exercises...")
             
-            flashcards = self._generate_flashcards(vocabulary, sentences, limit=8)
-            cloze_items = self._generate_cloze(paragraphs, vocabulary, limit=6)
-            # Basic sanitization: drop clearly malformed cloze items
-            cloze_items = self._sanitize_cloze(cloze_items)
-            grammar_questions = self._generate_grammar(paragraphs, mistakes, limit=6)
-            sentence_items = self._generate_sentences(sentences, limit=6)
+            flashcards = generate_flashcards(vocabulary, transcript, limit=12)
+            cloze_items = generate_cloze(mistakes, transcript, limit=8)
+            grammar_questions = generate_grammar(mistakes, limit=8)
+            sentence_items = generate_sentence_items(sentences, limit=8)
             
             # Step 4: Balance exercise counts (aim for 20-30 total)
             total = len(flashcards) + len(cloze_items) + len(grammar_questions) + len(sentence_items)
@@ -169,6 +165,7 @@ class LessonProcessor:
                 'cloze': [to_dict_safe(c) for c in cloze_items],
                 'grammar': [to_dict_safe(g) for g in grammar_questions],
                 'sentence': [to_dict_safe(s) for s in sentence_items],
+                'mistakes': mistakes,
                 'metadata': {
                     'lesson_number': lesson_number,
                     'total_exercises': total,

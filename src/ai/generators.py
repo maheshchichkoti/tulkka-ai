@@ -1,343 +1,356 @@
-# src/ai/generators.py
-"""
-Heuristic generators for exercises. These are light-weight fallback generators that
-produce usable content without an LLM. They are intentionally conservative.
-
-Structures:
-- Flashcard
-- ClozeItem
-- GrammarQuestion
-- SentenceItem
-
-Each generator accepts text (or paragraphs) and returns lists of items.
-You can optionally pass an `llm_fn(paragraph, task)` callable to generate higher-quality content.
-"""
+"""Production-ready exercise generators with translations and mistake focus."""
 
 from __future__ import annotations
 import logging
 import uuid
 import random
-from typing import List, Dict, Any, Optional, Callable, Tuple
+import re
+from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
-
-# Optional: Translation for fallback (default English → Hebrew)
-try:
-    from deep_translator import GoogleTranslator
-    translator = GoogleTranslator(source='en', target='he')
-    TRANSLATE_AVAILABLE = True
-except ImportError:
-    TRANSLATE_AVAILABLE = False
-    translator = None
 
 logger = logging.getLogger(__name__)
 
-# Data models (simple dataclasses)
+# Translation support (default English → Hebrew, code "iw")
+try:
+    from deep_translator import GoogleTranslator
+    TRANSLATE_AVAILABLE = True
+except ImportError:  # pragma: no cover - optional dependency
+    GoogleTranslator = None
+    TRANSLATE_AVAILABLE = False
+
+
+def _build_translator(target_lang: str = 'iw') -> Optional[GoogleTranslator]:
+    if not TRANSLATE_AVAILABLE or not GoogleTranslator:
+        return None
+    try:
+        return GoogleTranslator(source='en', target=target_lang)
+    except Exception as exc:  # pragma: no cover - network failure
+        logger.warning("Translator init failed (%s). Falling back to empty translations", exc)
+        return None
+
+
+def _translate(text: str, translator: Optional[GoogleTranslator]) -> str:
+    if not text or not translator:
+        return ''
+    try:
+        return translator.translate(text)
+    except Exception as exc:  # pragma: no cover
+        logger.warning("Translation failed for '%s': %s", text, exc)
+        return ''
+
+
 @dataclass
 class Flashcard:
     id: str
     word: str
     translation: str
+    example_sentence: Optional[str] = None
     notes: Optional[str] = None
+    category: Optional[str] = None
+    difficulty: str = "medium"
     metadata: Optional[Dict[str, Any]] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'id': self.id,
-            'word': self.word,
-            'translation': self.translation,
-            'notes': self.notes,
-            'metadata': self.metadata
+            "id": self.id,
+            "word": self.word,
+            "translation": self.translation,
+            "example_sentence": self.example_sentence,
+            "notes": self.notes,
+            "category": self.category,
+            "difficulty": self.difficulty,
+            "metadata": self.metadata,
         }
+
 
 @dataclass
 class ClozeItem:
     id: str
-    topic: Optional[str]
-    lesson: Optional[str]
-    difficulty: str
-    text_parts: List[str]  # surrounding text split by blanks
-    options: List[List[str]]
-    correct_answers: List[str]
-    explanation: Optional[str] = None
+    sentence: str
+    options: List[str]
+    correct_answer: str
+    explanation: str
+    difficulty: str = "medium"
+    topic: Optional[str] = None
+    student_mistake: Optional[str] = None
+    focus: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
+        parts = self.sentence.split('_____')
         return {
-            'id': self.id,
-            'topic': self.topic,
-            'lesson': self.lesson,
-            'difficulty': self.difficulty,
-            'text_parts': self.text_parts,
-            'options': self.options,
-            'correct_answers': self.correct_answers,
-            'explanation': self.explanation,
-            'metadata': self.metadata
+            "id": self.id,
+            "sentence": self.sentence,
+            "text_parts": parts if len(parts) == 2 else [self.sentence, ""],
+            "options": [self.options],
+            "correct_answers": [self.correct_answer],
+            "correct_answer": self.correct_answer,
+            "explanation": self.explanation,
+            "difficulty": self.difficulty,
+            "topic": self.topic,
+            "student_mistake": self.student_mistake,
+            "focus": self.focus,
+            "metadata": self.metadata,
         }
+
 
 @dataclass
 class GrammarQuestion:
     id: str
-    category: Optional[str]
-    difficulty: str
     prompt: str
     options: List[str]
     correct_index: int
-    explanation: Optional[str] = None
+    explanation: str
+    category: Optional[str] = None
+    difficulty: str = "medium"
+    student_mistake: Optional[str] = None
+    focus: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'id': self.id,
-            'category': self.category,
-            'difficulty': self.difficulty,
-            'prompt': self.prompt,
-            'options': self.options,
-            'correct_index': self.correct_index,
-            'explanation': self.explanation,
-            'metadata': self.metadata
+            "id": self.id,
+            "prompt": self.prompt,
+            "options": self.options,
+            "correct_index": self.correct_index,
+            "correct_answer": self.options[self.correct_index],
+            "explanation": self.explanation,
+            "category": self.category,
+            "difficulty": self.difficulty,
+            "student_mistake": self.student_mistake,
+            "focus": self.focus,
+            "metadata": self.metadata,
         }
+
 
 @dataclass
 class SentenceItem:
     id: str
     english_sentence: str
-    translation: Optional[str]
     sentence_tokens: List[str]
     accepted_sequences: List[List[str]]
     distractors: List[str]
+    translation: Optional[str] = None
     hint: Optional[str] = None
+    difficulty: str = "medium"
     metadata: Optional[Dict[str, Any]] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'id': self.id,
-            'english_sentence': self.english_sentence,
-            'translation': self.translation,
-            'sentence_tokens': self.sentence_tokens,
-            'accepted_sequences': self.accepted_sequences,
-            'distractors': self.distractors,
-            'hint': self.hint,
-            'metadata': self.metadata
+            "id": self.id,
+            "english_sentence": self.english_sentence,
+            "sentence_tokens": self.sentence_tokens,
+            "accepted_sequences": self.accepted_sequences,
+            "distractors": self.distractors,
+            "translation": self.translation,
+            "hint": self.hint,
+            "difficulty": self.difficulty,
+            "metadata": self.metadata,
         }
 
-# Helper: simple noun extraction (pick capitalized words or frequent content words)
-def _pick_candidate_words(paragraph: str, limit: int = 10) -> List[str]:
-    words = []
-    tokens = paragraph.split()
-    for t in tokens:
-        clean = t.strip(".,;:()[]\"'").strip()
-        if not clean:
+
+def _normalize_sentence(text: str) -> str:
+    text = re.sub(r"([.!?,;:])\1+", r"\1", text)
+    text = re.sub(r"\s+([.!?,;:])", r"\1", text)
+    text = re.sub(r"([.!?,;:])([A-Za-z])", r"\1 \2", text)
+    return text.strip()
+
+
+def _extract_sentences(transcript: str, min_words: int = 5, max_words: int = 20) -> List[str]:
+    sentences = re.split(r"[.!?]+", transcript)
+    clean = []
+    for sent in sentences:
+        sent = sent.strip()
+        if not sent:
             continue
-        # heuristics: proper nouns (capitalized mid-sentence), or longer meaningful tokens
-        if len(clean) > 6 or (clean[0].isupper() and not clean.isupper()):
-            words.append(clean)
-    # fallback: take top unique words
-    if not words:
-        seen = set()
-        for t in tokens:
-            w = t.strip(".,;:()[]\"'").lower()
-            if len(w) > 5 and w not in seen:
-                seen.add(w)
-                words.append(w)
-            if len(words) >= limit:
-                break
-    return words[:limit]
+        sent = re.sub(r"^(Teacher|Student):\s*", "", sent, flags=re.IGNORECASE)
+        sent = _normalize_sentence(sent)
+        words = sent.split()
+        if min_words <= len(words) <= max_words and any(w.lower() in {"i","you","he","she","we","they"} for w in words):
+            clean.append(sent)
+    return clean
 
-# -- GENERATORS ---
 
-def generate_flashcards_from_text(
-    paragraphs: List[str],
+def generate_flashcards(
+    vocabulary: List[Dict[str, str]],
+    transcript: str,
     *,
-    limit: int = 20,
-    llm_fn: Optional[Callable[[str, str], List[Dict[str, Any]]]] = None
-) -> List[Flashcard]:
-    """
-    Generate flashcard candidates from paragraphs.
-    If llm_fn provided, it is called as llm_fn(paragraph, "flashcards") and expected to return
-    a list of dicts with {word, translation, notes}.
-    Fallback heuristic picks candidate words and creates placeholders for translations.
-    """
+    limit: int = 12,
+    target_lang: str = 'iw'
+) -> List[Dict[str, Any]]:
+    translator = _build_translator(target_lang)
     cards: List[Flashcard] = []
-    for p in paragraphs:
-        if llm_fn:
-            try:
-                results = llm_fn(p, "flashcards")
-                for r in results:
-                    if len(cards) >= limit:
-                        break
-                    cards.append(Flashcard(id=str(uuid.uuid4()), word=r.get("word"), translation=r.get("translation",""), notes=r.get("notes")))
-                if len(cards) >= limit:
-                    break
-            except Exception:
-                logger.exception("LLM flashcard generation failed, falling back to heuristic")
-        # heuristic
-        candidates = _pick_candidate_words(p, limit=5)
-        for w in candidates:
-            if len(cards) >= limit:
-                break
-            # Try to translate if translator available
-            translation = ""
-            if TRANSLATE_AVAILABLE and translator:
-                try:
-                    translation = translator.translate(w)
-                except Exception:
-                    logger.warning(f"Translation failed for '{w}'")
-            cards.append(Flashcard(id=str(uuid.uuid4()), word=w, translation=translation, notes="autogen"))
-        if len(cards) >= limit:
-            break
-    return cards
+    sentences = _extract_sentences(transcript)
 
-def generate_cloze_from_text(
-    paragraphs: List[str],
+    for vocab_item in vocabulary[:limit]:
+        word = (vocab_item.get("word") or "").strip()
+        if not word:
+            continue
+        translation = (vocab_item.get("translation") or "").strip() or _translate(word, translator)
+        example = next((s for s in sentences if word.lower() in s.lower()), None)
+        cards.append(Flashcard(
+            id=str(uuid.uuid4()),
+            word=word,
+            translation=translation,
+            example_sentence=example,
+            notes=vocab_item.get("notes"),
+            category=vocab_item.get("category", "general"),
+            difficulty="beginner" if len(word.split()) == 1 and len(word) < 8 else "intermediate",
+            metadata={"source": "vocabulary"},
+        ))
+    return [c.to_dict() for c in cards]
+
+
+def _diff_word(correct_words: List[str], incorrect_words: List[str]) -> Optional[str]:
+    for idx, word in enumerate(correct_words):
+        if idx >= len(incorrect_words) or word.lower() != incorrect_words[idx].lower():
+            return word.strip('.,;:!?')
+    return None
+
+
+def _distractors(word: str, mistake_type: str, incorrect_words: List[str]) -> List[str]:
+    if not word:
+        return []
+    variants = []
+    base = word.rstrip('seding')
+    if 'verb_tense' in mistake_type:
+        variants = [base + "ing", base + "ed", base + "s"]
+    elif 'subject_verb_agreement' in mistake_type:
+        variants = [word + "s", base, word + "ed"]
+    elif 'article' in mistake_type:
+        variants = ['a', 'an', 'the']
+    elif 'plural' in mistake_type:
+        variants = [word + 's', word + 'es', base]
+    elif 'preposition' in mistake_type:
+        variants = ['to', 'at', 'in', 'on', 'for', 'with']
+    else:
+        variants = [w.strip('.,;:!?') for w in incorrect_words]
+    uniq = []
+    seen = set()
+    for v in variants:
+        if not v or v.lower() == word.lower() or v.lower() in seen:
+            continue
+        uniq.append(v)
+        seen.add(v.lower())
+        if len(uniq) == 3:
+            break
+    return uniq
+
+
+def generate_cloze(
+    mistakes: List[Dict[str, str]],
+    transcript: str,
     *,
-    max_items: int = 10,
-    difficulty: str = "medium",
-    llm_fn: Optional[Callable[[str, str], List[Dict[str, Any]]]] = None,
-    vocab_words: Optional[List[str]] = None
-) -> List[ClozeItem]:
-    """
-    Heuristic cloze generator: choose sentences and mask a content word to create options.
-    Each ClozeItem.text_parts is [before, after] for a single-blank sentence.
-    Options include the correct word and simple distractors.
-    """
+    limit: int = 8
+) -> List[Dict[str, Any]]:
     items: List[ClozeItem] = []
-    for p in paragraphs:
-        # split into sentences
-        sents = [s.strip() for s in p.split(".") if s.strip()]
-        for s in sents:
-            if len(items) >= max_items:
-                break
-            words = s.split()
-            if len(words) < 6:
-                continue
-            # pick candidate index (prefer longer content words)
-            idx_candidates = [i for i,w in enumerate(words) if len(w.strip(".,;:")) > 5]
-            if not idx_candidates:
-                idx = len(words)//2
-            else:
-                idx = random.choice(idx_candidates)
-            correct = words[idx].strip(".,;:()\"'")
-            before = " ".join(words[:idx]).strip()
-            after = " ".join(words[idx+1:]).strip()
-            # build distractors from sentence + vocab pool
-            candidate_pool = [w.strip(".,;:()\"'") for i,w in enumerate(words) if i != idx and len(w) > 3]
-            if vocab_words:
-                candidate_pool.extend(vocab_words)
-            # filter similarity/duplicates
-            filtered = []
-            seen = set()
-            for cand in candidate_pool:
-                cand_clean = cand.strip()
-                if not cand_clean or cand_clean.lower() == correct.lower():
-                    continue
-                if abs(len(cand_clean) - len(correct)) > 4:
-                    continue
-                if cand_clean.lower() in seen:
-                    continue
-                filtered.append(cand_clean)
-                seen.add(cand_clean.lower())
-                if len(filtered) >= 3:
-                    break
-            options = [correct] + filtered
-            if len(options) < 3:
-                # fallback simple permutations
-                options.append(correct.lower())
-            options = options[:4]
-            items.append(ClozeItem(
-                id=str(uuid.uuid4()),
-                topic=None,
-                lesson=None,
-                difficulty=difficulty,
-                text_parts=[before, after],
-                options=[options],
-                correct_answers=[correct],
-                explanation=f"'{correct}' fits best because it matches the sentence meaning and tense.",
-                metadata={"source": "heuristic"}
-            ))
-        if len(items) >= max_items:
-            break
-    return items
+    _ = _extract_sentences(transcript)  # Currently not used but kept for context
+    for mistake in mistakes[:limit]:
+        incorrect = (mistake.get("incorrect") or "").strip()
+        correct = (mistake.get("correct") or "").strip()
+        if not correct:
+            continue
+        correct_words = correct.split()
+        incorrect_words = incorrect.split()
+        blank = _diff_word(correct_words, incorrect_words) or (correct_words[0] if correct_words else None)
+        if not blank:
+            continue
+        sentence = correct.replace(blank, "_____", 1)
+        distractors = _distractors(blank, mistake.get("type", "grammar_general"), incorrect_words)
+        options = [blank] + distractors
+        while len(options) < 4:
+            options.append(blank.lower() if blank.lower() != blank else blank.upper())
+        random.shuffle(options)
+        explanation = mistake.get("rule") or "Use the grammatically correct form."
+        items.append(ClozeItem(
+            id=str(uuid.uuid4()),
+            sentence=sentence,
+            options=options[:4],
+            correct_answer=blank,
+            explanation=explanation,
+            difficulty="beginner" if len(correct_words) < 8 else "intermediate",
+            topic=mistake.get("type"),
+            student_mistake=incorrect,
+            focus=mistake.get("type"),
+            metadata={"source": "mistake"},
+        ))
+    return [c.to_dict() for c in items]
 
-def generate_grammar_from_text(
-    paragraphs: List[str],
+
+def generate_grammar(
+    mistakes: List[Dict[str, str]],
     *,
-    max_questions: int = 10,
-    difficulty: str = "medium",
-    llm_fn: Optional[Callable[[str, str], List[Dict[str, Any]]]] = None
-) -> List[GrammarQuestion]:
-    """
-    Produce simple grammar multiple-choice questions by finding sentences and replacing verbs with blanks.
-    Heuristic: find sentences with common auxiliaries and create choices.
-    """
+    limit: int = 8
+) -> List[Dict[str, Any]]:
     questions: List[GrammarQuestion] = []
-    auxiliaries = ["is", "are", "was", "were", "has", "have", "had", "will", "would", "can", "could", "should", "may"]
-    for p in paragraphs:
-        sents = [s.strip() for s in p.split(".") if s.strip()]
-        for s in sents:
-            if len(questions) >= max_questions:
-                break
-            tokens = s.split()
-            for i,tok in enumerate(tokens):
-                if tok.lower() in auxiliaries:
-                    # make a blank at position i
-                    prompt = " ".join(tokens[:i] + ["_____"] + tokens[i+1:])
-                    opts = [tok, "did", "do", "does"]
-                    correct_index = 0
-                    explanation = "Use '{}' because it agrees with the subject '{}' in this sentence.".format(
-                        tok,
-                        tokens[i - 1] if i > 0 else ""
-                    )
-                    questions.append(GrammarQuestion(
-                        id=str(uuid.uuid4()),
-                        category=None,
-                        difficulty=difficulty,
-                        prompt=prompt,
-                        options=opts,
-                        correct_index=correct_index,
-                        explanation=explanation.strip(),
-                        metadata={"source":"heuristic"}
-                    ))
-                    break
-            if len(questions) >= max_questions:
-                break
-        if len(questions) >= max_questions:
-            break
-    return questions
+    for mistake in mistakes[:limit]:
+        incorrect = (mistake.get("incorrect") or "").strip()
+        correct = (mistake.get("correct") or "").strip()
+        if not correct:
+            continue
+        correct_words = correct.split()
+        incorrect_words = incorrect.split()
+        blank_word = _diff_word(correct_words, incorrect_words) or (correct_words[0] if correct_words else None)
+        if not blank_word:
+            continue
+        idx = correct_words.index(blank_word) if blank_word in correct_words else 0
+        prompt_words = correct_words.copy()
+        prompt_words[idx] = '_____'
+        prompt = ' '.join(prompt_words)
+        options = _distractors(blank_word, mistake.get("type", "grammar_general"), incorrect_words)
+        options = [blank_word] + options
+        while len(options) < 4:
+            options.append(blank_word + "s" if not blank_word.endswith("s") else blank_word[:-1])
+        random.shuffle(options)
+        correct_index = options.index(blank_word)
+        rule = mistake.get("rule") or "This is the correct grammatical form."
+        explanation = f"Use '{blank_word}' because {rule.lower()}"
+        if incorrect:
+            explanation += f" (student said '{incorrect}')."
+        questions.append(GrammarQuestion(
+            id=str(uuid.uuid4()),
+            prompt=prompt,
+            options=options[:4],
+            correct_index=correct_index,
+            explanation=explanation,
+            category=mistake.get("type"),
+            difficulty="beginner" if len(correct_words) < 8 else "intermediate",
+            student_mistake=incorrect,
+            focus=mistake.get("type"),
+            metadata={"source": "mistake"},
+        ))
+    return [q.to_dict() for q in questions]
 
-def generate_sentence_items_from_text(
-    paragraphs: List[str],
+
+def generate_sentence_items(
+    sentences: List[Dict[str, str]],
     *,
-    max_items: int = 10,
-    difficulty: str = "medium",
-    llm_fn: Optional[Callable[[str, str], List[Dict[str, Any]]]] = None
-) -> List[SentenceItem]:
-    """
-    Create sentence-builder items by taking short sentences and tokenizing them.
-    accepted_sequences uses the canonical token order.
-    """
+    limit: int = 8,
+    target_lang: str = 'iw'
+) -> List[Dict[str, Any]]:
+    translator = _build_translator(target_lang)
     items: List[SentenceItem] = []
-    for p in paragraphs:
-        sents = [s.strip() for s in p.split(".") if s.strip()]
-        paragraph_tokens = [w.strip(".,;:()\"'") for w in p.split() if len(w) > 3]
-        for s in sents:
-            if len(items) >= max_items:
-                break
-            tokens = [t.strip() for t in s.split() if t.strip()]
-            if len(tokens) < 3 or len(tokens) > 25:
-                continue
-            distractor_candidates = [w for w in paragraph_tokens if w and w not in tokens]
-            random.shuffle(distractor_candidates)
-            distractors = distractor_candidates[:3]
-            items.append(SentenceItem(
-                id=str(uuid.uuid4()),
-                english_sentence=s + ".",
-                translation=None,
-                sentence_tokens=tokens,
-                accepted_sequences=[tokens],
-                distractors=distractors,
-                hint=None,
-                metadata={"source":"heuristic"}
-            ))
-        if len(items) >= max_items:
-            break
-    return items
+    for sent in sentences[:limit]:
+        sentence = (sent.get("sentence") or "").strip()
+        if not sentence:
+            continue
+        sentence = _normalize_sentence(sentence)
+        if not sentence.endswith(('.', '!', '?')):
+            sentence += '.'
+        words = sentence.split()
+        tokens = [w if idx == len(words) - 1 else w.strip('.,;:!?') for idx, w in enumerate(words)]
+        distractors = [w for w in ["the", "a", "is", "are", "was", "were"] if w not in {t.lower() for t in tokens}][:3]
+        translation = _translate(sentence, translator)
+        diff = 'beginner' if len(tokens) <= 5 else 'intermediate' if len(tokens) <= 8 else 'advanced'
+        items.append(SentenceItem(
+            id=str(uuid.uuid4()),
+            english_sentence=sentence,
+            sentence_tokens=tokens,
+            accepted_sequences=[tokens],
+            distractors=distractors,
+            translation=translation,
+            hint=sent.get("hint"),
+            difficulty=diff,
+            metadata={"source": "sentence"},
+        ))
+    return [s.to_dict() for s in items]

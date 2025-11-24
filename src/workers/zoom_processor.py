@@ -19,58 +19,10 @@ BATCH_SIZE = settings.WORKER_BATCH_SIZE
 MAX_RETRIES = settings.WORKER_MAX_RETRIES
 
 def fetch_pending(limit: int = BATCH_SIZE):
-    """Fetch rows ready for processing, normalizing legacy statuses if needed."""
     try:
-        pending = supabase.find_pending_summaries(limit)
-
-        awaiting = []
-        normalized = []
-        if supabase.client:
-            awaiting = _fetch_by_status("awaiting_exercises", limit)
-            normalized = _normalize_pending_transcript(limit)
-
-        if awaiting:
-            pending.extend(awaiting)
-        if normalized:
-            pending.extend(normalized)
-
-        return pending
+        return supabase.find_pending_summaries(limit)
     except Exception:
         logger.exception("Failed fetching pending summaries")
-        return []
-
-
-def _fetch_by_status(status: str, limit: int):
-    resp = supabase.client.table("zoom_summaries").select("*").eq("status", status).order("created_at", desc=False).limit(limit).execute()
-    return getattr(resp, "data", []) or []
-
-
-def _normalize_pending_transcript(limit: int):
-    """Automatically convert legacy 'pending_transcript' rows into supported statuses."""
-    if not supabase.client:
-        return []
-
-    try:
-        rows = _fetch_by_status("pending_transcript", limit)
-        if not rows:
-            return []
-
-        normalized = []
-        for row in rows:
-            transcript = row.get("transcript") or row.get("transcription")
-            new_status = "awaiting_exercises" if transcript else "pending"
-            update_payload = {"status": new_status, "updated_at": utc_now_iso()}
-            try:
-                supabase.update_zoom_summary(row["id"], update_payload)
-                row["status"] = new_status
-                normalized.append(row)
-            except Exception:
-                logger.warning("Failed to normalize row %s", row.get("id"))
-        if normalized:
-            logger.info("Normalized %d pending_transcript rows", len(normalized))
-        return normalized
-    except Exception:
-        logger.exception("Failed fetching pending_transcript summaries")
         return []
 
 def claim_summary(row_id: Any) -> bool:
@@ -82,12 +34,14 @@ def claim_summary(row_id: Any) -> bool:
         logger.exception("Failed to claim summary %s", row_id)
         return False
 
-def mark_completed(row_id: Any, metadata: Optional[Dict[str, Any]] = None):
+def mark_completed(row_id: Any, metadata: Optional[Dict[str, Any]] = None, exercises_generated: bool = True):
     try:
-        payload = {"status": "completed", "processed_at": utc_now_iso()}
+        status = "completed" if exercises_generated else "awaiting_exercises"
+        payload = {"status": status, "processed_at": utc_now_iso()}
         if metadata:
             payload["processing_metadata"] = metadata
         supabase.update_zoom_summary(row_id, payload)
+        logger.info(f"Marked row {row_id} as {status}")
     except Exception:
         logger.exception("Failed to mark completed %s", row_id)
 
@@ -115,87 +69,165 @@ def process_row(row: Dict[str, Any]):
             logger.debug("Could not claim row %s", row_id)
             return
 
-        # Check if transcript already exists (from n8n)
-        existing_transcript = row.get("transcript") or row.get("transcription")
-        if existing_transcript and len(existing_transcript) > 100:
-            logger.info("Using existing transcript for row %s (%d chars)", row_id, len(existing_transcript))
-            transcript_text = existing_transcript
-            transcription_source = row.get("transcript_source") or row.get("transcription_source") or "n8n_assemblyai"
-        else:
-            # Determine best available file to fetch
-            files = row.get("recording_files") or row.get("files") or []
-            transcript_file = has_transcript_file(files)
-            audio_file = has_audio_files(files)
-
-            transcript_text = ""
-            transcription_source = None
-
-            if transcript_file:
-                download_url = transcript_file.get("download_url")
+        # Fetch recording files from Zoom if not already present
+        files = row.get("recording_files") or row.get("files") or []
+        
+        if not files:
+            logger.info("No recording_files in row %s, fetching from Zoom API", row_id)
+            teacher_email = row.get("teacher_email")
+            meeting_date = row.get("meeting_date")
+            start_time = row.get("start_time")
+            end_time = row.get("end_time")
+            
+            if not teacher_email or not meeting_date:
+                raise RuntimeError("Missing teacher_email or meeting_date - cannot fetch Zoom recordings")
+            
+            try:
+                # Fetch recordings from Zoom API
                 try:
-                    content_bytes = zoom_api.download_file(download_url)
-                    content = content_bytes.decode("utf-8", errors="ignore")
-                    transcript_text = clean_vtt_transcript(content)
-                    transcription_source = "zoom_native_transcript"
-                except Exception:
-                    logger.exception("Failed downloading transcript file for row %s", row_id)
-                    raise
-
-            elif audio_file:
-                # Use AssemblyAI for audio transcription
-                download_url = audio_file.get("download_url")
-                try:
-                    from ..ai.utils.assemblyai_helper import AssemblyAIHelper
-                    aai_helper = AssemblyAIHelper()
+                    zoom_response = zoom_api.list_user_recordings(
+                        user_id=teacher_email,
+                        from_date=meeting_date,
+                        to_date=meeting_date
+                    )
+                except Exception as zoom_err:
+                    logger.exception(f"Zoom API call failed for row {row_id}: {zoom_err}")
+                    mark_failed(
+                        row_id,
+                        f"Failed to fetch recordings from Zoom API: {str(zoom_err)}. Check Zoom credentials and API access.",
+                        int((row.get("processing_attempts") or 0) + 1)
+                    )
+                    return
+                
+                meetings = zoom_response.get("meetings", [])
+                logger.info(f"Found {len(meetings)} meetings for {teacher_email} on {meeting_date}")
+                
+                # Filter by time range if provided
+                matching_meeting = None
+                for meeting in meetings:
+                    meeting_start = meeting.get("start_time", "")
+                    # Simple match - can be enhanced with time range filtering
+                    if meeting.get("recording_files"):
+                        matching_meeting = meeting
+                        logger.info(f"Found meeting with recordings: {meeting.get('topic')}")
+                        break
+                
+                if matching_meeting:
+                    files = matching_meeting.get("recording_files", [])
+                    logger.info(f"Found {len(files)} recording files for row {row_id}")
+                else:
+                    # No recordings found - mark as failed with helpful message
+                    logger.warning(f"No Zoom recordings found for {teacher_email} on {meeting_date}")
+                    mark_failed(
+                        row_id, 
+                        f"No Zoom recordings available for {teacher_email} on {meeting_date}. Recording may not be ready yet or recording was not enabled for this meeting.",
+                        int((row.get("processing_attempts") or 0) + 1)
+                    )
+                    return
                     
-                    if aai_helper.enabled:
-                        logger.info("Transcribing audio with AssemblyAI for row %s", row_id)
-                        result = aai_helper.transcribe_audio(download_url)
-                        if result and result.get('text'):
-                            transcript_text = result['text']
-                            transcription_source = "assemblyai"
-                            logger.info("AssemblyAI transcription completed: %d chars", len(transcript_text))
-                        else:
-                            logger.warning("AssemblyAI transcription failed for row %s", row_id)
-                            transcription_source = "audio_file_no_transcript"
+            except Exception as e:
+                logger.exception(f"Failed to fetch Zoom recordings for row {row_id}: {e}")
+                raise
+        
+        transcript_file = has_transcript_file(files)
+        audio_file = has_audio_files(files)
+
+        transcript_text = ""
+        transcription_source = None
+
+        if transcript_file:
+            download_url = transcript_file.get("download_url")
+            try:
+                content_bytes = zoom_api.download_file(download_url)
+                content = content_bytes.decode("utf-8", errors="ignore")
+                transcript_text = clean_vtt_transcript(content)
+                transcription_source = "zoom_native_transcript"
+            except Exception:
+                logger.exception("Failed downloading transcript file for row %s", row_id)
+                raise
+
+        elif audio_file:
+            # Use AssemblyAI for audio transcription
+            download_url = audio_file.get("download_url")
+            try:
+                from ..ai.utils.assemblyai_helper import AssemblyAIHelper
+                aai_helper = AssemblyAIHelper()
+                
+                if aai_helper.enabled:
+                    logger.info("Transcribing audio with AssemblyAI for row %s", row_id)
+                    result = aai_helper.transcribe_audio(download_url)
+                    if result and result.get('text'):
+                        transcript_text = result['text']
+                        transcription_source = "assemblyai"
+                        logger.info("AssemblyAI transcription completed: %d chars", len(transcript_text))
                     else:
-                        logger.warning("AssemblyAI not available, downloading audio only")
-                        audio_bytes = zoom_api.download_file(download_url)
-                        transcription_source = "audio_file_downloaded"
-                except Exception:
-                    logger.exception("Failed processing audio for row %s", row_id)
-                    raise
-            else:
-                logger.warning("No transcript or audio found for row %s", row_id)
-                raise RuntimeError("No transcript or audio available")
+                        logger.warning("AssemblyAI transcription failed for row %s", row_id)
+                        transcription_source = "audio_file_no_transcript"
+                else:
+                    logger.warning("AssemblyAI not available, downloading audio only")
+                    audio_bytes = zoom_api.download_file(download_url)
+                    transcription_source = "audio_file_downloaded"
+            except Exception:
+                logger.exception("Failed processing audio for row %s", row_id)
+                raise
+        else:
+            # No transcript or audio files in the recording
+            logger.warning("No transcript or audio files found in recording for row %s", row_id)
+            mark_failed(
+                row_id,
+                "Zoom recording exists but contains no transcript or audio files. Recording may still be processing.",
+                int((row.get("processing_attempts") or 0) + 1)
+            )
+            return
 
-            # Minimal validation
-            if not transcript_text and transcription_source != "audio_file_downloaded":
-                raise RuntimeError("Transcript extraction failed or empty")
+        # Minimal validation - we must have a non-empty transcript
+        if not transcript_text:
+            logger.warning("Transcript extraction resulted in empty text for row %s", row_id)
+            mark_failed(
+                row_id,
+                "Transcript extraction failed or resulted in empty text",
+                int((row.get("processing_attempts") or 0) + 1)
+            )
+            return
 
-            # Persist transcript into zoom_summaries (overwrite or update)
-            update_payload = {
-                "transcript": transcript_text,
-                "transcript_length": len(transcript_text or ""),
-                "transcript_source": transcription_source or "unknown",
-                "transcription_status": "completed" if transcript_text else "pending",
-                "processing_completed_at": utc_now_iso()
-            }
-            supabase.update_zoom_summary(row_id, update_payload)
+        # Persist transcript into zoom_summaries (overwrite or update)
+        update_payload = {
+            "transcript": transcript_text,
+            "transcript_length": len(transcript_text or ""),
+            "transcript_source": transcription_source or "unknown",
+            "transcription_status": "completed",
+            "status": "awaiting_exercises",
+            "processing_completed_at": utc_now_iso()
+        }
+        supabase.update_zoom_summary(row_id, update_payload)
+
+        # Prepare a summary row for the AI orchestrator that already contains the transcript
+        summary_for_ai = dict(row)
+        summary_for_ai["transcript"] = transcript_text
+        if transcription_source:
+            summary_for_ai["transcript_source"] = transcription_source
 
         # Call AI orchestrator to generate exercises
+        exercise_generation_failed = False
         try:
             from ..ai.orchestrator import process_transcript_to_exercises
-            result = process_transcript_to_exercises(row, persist=True)
+            result = process_transcript_to_exercises(summary_for_ai, persist=True)
             if result.get("ok"):
                 logger.info("Generated exercises for row %s: %s", row_id, result.get("counts"))
             else:
                 logger.warning("Exercise generation failed for row %s: %s", row_id, result.get("reason"))
+                exercise_generation_failed = True
         except Exception as e:
             logger.exception("Failed to generate exercises for row %s: %s", row_id, e)
-
-        mark_completed(row_id, metadata={"transcription_source": transcription_source})
-        logger.info("Processed and marked completed %s", row_id)
+            exercise_generation_failed = True
+        
+        # Mark as completed if exercises generated, otherwise awaiting_exercises
+        if exercise_generation_failed:
+            logger.warning("Exercise generation failed for row %s - marking as awaiting_exercises", row_id)
+            mark_completed(row_id, metadata={"transcription_source": transcription_source}, exercises_generated=False)
+        else:
+            logger.info("Successfully generated exercises for row %s", row_id)
+            mark_completed(row_id, metadata={"transcription_source": transcription_source}, exercises_generated=True)
 
     except Exception as exc:
         tb = traceback.format_exc()

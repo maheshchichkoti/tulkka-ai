@@ -21,15 +21,17 @@ class TranscriptInput(BaseModel):
     class_id: Optional[str] = None
 
 class ZoomLessonInput(BaseModel):
-    user_id: str
-    teacher_id: str
-    class_id: str
-    date: str = Field(..., pattern=r'^\d{4}-\d{2}-\d{2}$')
-    lesson_number: int = Field(1, ge=1)
-    meeting_id: Optional[str] = None
-    start_time: Optional[str] = None  # Format: "HH:MM"
-    end_time: Optional[str] = None    # Format: "HH:MM"
-    teacher_email: Optional[str] = None
+    """Input for triggering lesson processing from backend"""
+    teacherEmail: str = Field(..., description="Teacher's Zoom email")
+    date: str = Field(..., pattern=r'^\d{4}-\d{2}-\d{2}$', description="Class date (YYYY-MM-DD)")
+    startTime: str = Field(..., description="Start time (HH:MM)")
+    endTime: str = Field(..., description="End time (HH:MM)")
+    user_id: str = Field(..., description="Student/user ID from MySQL")
+    teacher_id: str = Field(..., description="Teacher ID from MySQL")
+    class_id: str = Field(..., description="Class ID from MySQL")
+    lesson_number: int = Field(1, ge=1, description="Lesson number")
+    meetingId: Optional[str] = Field(None, description="Zoom meeting ID if known")
+    meetingTopic: Optional[str] = Field(None, description="Meeting topic")
 
 @router.post("/process")
 def process_transcript(payload: TranscriptInput):
@@ -66,58 +68,155 @@ def process_transcript(payload: TranscriptInput):
         logger.exception(f"Error processing transcript: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/process-zoom-lesson")
-def process_zoom_lesson(payload: ZoomLessonInput, background_tasks: BackgroundTasks):
-    """Fetch transcript from Zoom/Supabase and process"""
+@router.post("/trigger-lesson-processing")
+def trigger_lesson_processing(payload: ZoomLessonInput):
+    """
+    Main endpoint for backend to trigger lesson processing
+    
+    Flow:
+    1. Create pending row in Supabase zoom_summaries
+    2. Background worker will:
+       - Fetch Zoom recording
+       - Transcribe (Zoom native or AssemblyAI)
+       - Generate exercises
+       - Store in lesson_exercises table
+    
+    Returns immediately with tracking ID
+    """
     try:
-        # Fetch transcript from Supabase
-        summary = supabase.fetch_zoom_summary(
-            user_id=payload.user_id,
-            teacher_id=payload.teacher_id,
+        # Check if already processed (match by class_id, date, and time to allow multiple lessons per day)
+        existing = supabase.fetch_zoom_summary(
             class_id=payload.class_id,
-            meeting_date=payload.date
+            meeting_date=payload.date,
+            start_time=payload.startTime
         )
         
-        if not summary:
-            raise HTTPException(status_code=404, detail="Zoom transcript not found")
+        if existing:
+            status = existing.get('status')
+            status_messages = {
+                'pending': 'Queued for processing',
+                'processing': 'Currently being processed by worker',
+                'awaiting_exercises': 'Transcript ready, exercises pending',
+                'completed': 'Fully processed with exercises',
+                'failed': 'Processing failed - check error details'
+            }
+            return {
+                'success': True,
+                'message': f'Lesson already exists: {status_messages.get(status, status)}',
+                'zoom_summary_id': existing.get('id'),
+                'status': status,
+                'transcript_available': bool(existing.get('transcript')),
+                'exercises_generated': status == 'completed',
+                'check_status_url': f'/v1/lesson-status/{existing.get("id")}'
+            }
         
-        transcript = summary.get('transcript')
-        if not transcript:
-            raise HTTPException(status_code=400, detail="Transcript is empty")
+        # Create pending row in Supabase
+        zoom_summary_row = {
+            'user_id': payload.user_id,
+            'teacher_id': payload.teacher_id,
+            'class_id': payload.class_id,
+            'teacher_email': payload.teacherEmail,
+            'meeting_date': payload.date,
+            'start_time': payload.startTime,
+            'end_time': payload.endTime,
+            'meeting_topic': payload.meetingTopic or f"Class {payload.class_id}",
+            'lesson_number': payload.lesson_number,
+            'status': 'pending',
+            'processing_attempts': 0,
+            'created_at': utc_now_iso()
+        }
         
-        # Process in background
-        def process_task():
-            try:
-                result = lesson_processor.process_lesson(transcript, payload.lesson_number)
-                
-                # Store exercises
-                exercises_payload = {
-                    'zoom_summary_id': summary.get('id'),
-                    'user_id': payload.user_id,
-                    'teacher_id': payload.teacher_id,
-                    'class_id': payload.class_id,
-                    'lesson_number': payload.lesson_number,
-                    'exercises': result,
-                    'generated_at': utc_now_iso(),
-                    'status': 'pending_approval'
-                }
-                supabase.insert_lesson_exercises(exercises_payload)
-                logger.info(f"Processed zoom lesson for {payload.user_id}/{payload.class_id}/{payload.date}")
-            except Exception as e:
-                logger.exception(f"Background processing failed: {e}")
+        # Add optional fields only if provided
+        if payload.meetingId:
+            zoom_summary_row['meeting_id'] = payload.meetingId
         
-        background_tasks.add_task(process_task)
+        result = supabase.insert_zoom_summary(zoom_summary_row)
+        
+        if not result:
+            raise HTTPException(status_code=500, detail="Failed to create Supabase record")
+        
+        zoom_summary_id = result.get('id')
+        
+        logger.info(f"✅ Created pending zoom summary {zoom_summary_id} for class {payload.class_id} on {payload.date} at {payload.startTime}")
         
         return {
             'success': True,
-            'message': 'Processing started',
-            'zoom_summary_id': summary.get('id'),
-            'lesson_number': payload.lesson_number
+            'message': 'Lesson processing queued successfully',
+            'zoom_summary_id': zoom_summary_id,
+            'status': 'pending',
+            'class_id': payload.class_id,
+            'lesson_number': payload.lesson_number,
+            'meeting_date': payload.date,
+            'estimated_processing_time': '1-2 minutes',
+            'next_steps': [
+                'Worker will fetch Zoom recording',
+                'Transcribe audio (if needed)',
+                'Generate exercises with AI',
+                'Store in lesson_exercises table'
+            ],
+            'check_status_url': f'/v1/lesson-status/{zoom_summary_id}',
+            'check_exercises_url': f'/v1/exercises?class_id={payload.class_id}'
         }
+        
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception(f"Error processing zoom lesson: {e}")
+        logger.exception(f"Error triggering lesson processing: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/lesson-status/{zoom_summary_id}")
+def get_lesson_status(zoom_summary_id: int):
+    """
+    Check processing status of a lesson
+    
+    Statuses:
+    - pending: Waiting for worker to pick up
+    - processing: Worker is currently processing
+    - completed: Exercises generated and stored
+    - failed: Processing failed (check last_error)
+    """
+    try:
+        summary = supabase.get_zoom_summary_by_id(zoom_summary_id)
+        
+        if not summary:
+            raise HTTPException(status_code=404, detail="Lesson not found")
+        
+        # Check if exercises were generated
+        exercises = None
+        if summary.get('status') == 'completed':
+            try:
+                resp = supabase.client.table('lesson_exercises').select('*').eq(
+                    'zoom_summary_id', zoom_summary_id
+                ).execute()
+                exercises_data = getattr(resp, 'data', []) or []
+                if exercises_data:
+                    exercises = exercises_data[0]
+            except Exception:
+                pass
+        
+        return {
+            'success': True,
+            'zoom_summary_id': zoom_summary_id,
+            'status': summary.get('status'),
+            'class_id': summary.get('class_id'),
+            'user_id': summary.get('user_id'),
+            'teacher_id': summary.get('teacher_id'),
+            'transcript_available': bool(summary.get('transcript')),
+            'transcript_length': summary.get('transcript_length', 0),
+            'transcription_source': summary.get('transcript_source'),
+            'processing_attempts': summary.get('processing_attempts', 0),
+            'last_error': summary.get('last_error'),
+            'created_at': summary.get('created_at'),
+            'processed_at': summary.get('processed_at'),
+            'exercises_generated': bool(exercises),
+            'exercises_id': exercises.get('id') if exercises else None
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error fetching lesson status: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/exercises")
