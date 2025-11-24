@@ -6,17 +6,16 @@ class MistakeExtractor:
     """Extracts student mistakes and corrections from lessons"""
     
     def __init__(self):
+        # Patterns that capture (incorrect, correct) pairs
         self.correction_patterns = [
-            r"not\s+['\"]([^'\"]+)['\"]\s*,?\s*(?:it's|say|use)\s+['\"]([^'\"]+)['\"]",
-            r"don't say\s+['\"]([^'\"]+)['\"]\s*,?\s*say\s+['\"]([^'\"]+)['\"]",
-            r"instead of\s+['\"]([^'\"]+)['\"]\s*,?\s*(?:use|say)\s+['\"]([^'\"]+)['\"]",
-            r"(?:incorrect|wrong|mistake):\s*['\"]([^'\"]+)['\"]\s*(?:correct|right):\s*['\"]([^'\"]+)['\"]",
-            r"should\s+be\s+['\"]([^'\"]+)['\"]",
-            r"should\s+say\s+['\"]([^'\"]+)['\"]",
-            r"should\s+use\s+['\"]([^'\"]+)['\"]",
-            r"should\s+have\s+['\"]([^'\"]+)['\"]",
-            r"should\s+not\s+have\s+['\"]([^'\"]+)['\"]",
-            r"should\s+be\s+['\"]([^'\"]+)['\"]\s*,?\s*instead\s+of\s+['\"]([^'\"]+)['\"]",
+            # "not X, say Y" or "not X, it's Y"
+            (r"(?:not|don't\s+say)\s+['\"]([^'\"]+)['\"]\s*,?\s*(?:say|use|it's)\s+['\"]([^'\"]+)['\"]", False),
+            # "instead of X, use Y"
+            (r"instead\s+of\s+['\"]([^'\"]+)['\"]\s*,?\s*(?:use|say)\s+['\"]([^'\"]+)['\"]", False),
+            # "X should be Y"
+            (r"['\"]([^'\"]+)['\"]\s+should\s+be\s+['\"]([^'\"]+)['\"]", False),
+            # "should be Y (not X)" - reversed order
+            (r"should\s+be\s+['\"]([^'\"]+)['\"]\s*(?:not|instead\s+of)\s+['\"]([^'\"]+)['\"]", True),
         ]
     
     def extract(self, transcript: str) -> List[Dict[str, str]]:
@@ -24,66 +23,75 @@ class MistakeExtractor:
         mistakes = []
         seen = set()
         
-        # Split transcript into lines for context
+        # Split into lines
         lines = transcript.split('\n')
         
-        # Extract explicit corrections with context
+        # Extract explicit teacher corrections
         for i, line in enumerate(lines):
-            # Look for teacher corrections
-            if re.search(r'Teacher:', line, re.IGNORECASE):
-                # Check if previous line was student speaking
-                student_line = lines[i-1] if i > 0 and re.search(r'Student:', lines[i-1], re.IGNORECASE) else None
-                
-                for pattern in self.correction_patterns:
-                    for match in re.finditer(pattern, line, re.IGNORECASE):
-                        groups = match.groups()
-                        if len(groups) == 1:
-                            # Single group = correction only
-                            correct = groups[0].strip()
-                            # Try to extract incorrect from student line
-                            if student_line:
-                                student_text = re.sub(r'Student:\s*', '', student_line, flags=re.IGNORECASE).strip()
-                                incorrect = student_text
-                            else:
-                                continue
-                        else:
-                            # Two groups = incorrect and correct
-                            incorrect = groups[0].strip()
-                            correct = groups[1].strip()
-                        
-                        key = (incorrect.lower(), correct.lower())
-                        if key not in seen and incorrect and correct:
-                            # Categorize mistake type
-                            mistake_type = self._categorize_mistake(incorrect, correct)
-                            mistakes.append({
-                                'incorrect': incorrect,
-                                'correct': correct,
-                                'type': mistake_type,
-                                'context': match.group(0),
-                                'rule': self._get_grammar_rule(incorrect, correct, mistake_type)
-                            })
-                            seen.add(key)
-        
-        # Extract grammar mistakes (common patterns)
-        grammar_patterns = [
-            (r'\b(have|has)\s+to\s+(\w+ed)\b', 'modal_verb_error'),
-            (r'\b(is|are|was|were)\s+(\w+ing)\b', 'tense_error'),
-            (r'\b(a|an)\s+([aeiou]\w+)\b', 'article_error'),
-        ]
-        
-        for pattern, error_type in grammar_patterns:
-            for match in re.finditer(pattern, transcript, re.IGNORECASE):
-                context = match.group(0)
-                if context.lower() not in seen:
+            if not re.search(r'Teacher', line, re.IGNORECASE):
+                continue
+            
+            # Try each correction pattern
+            for pattern, reverse_order in self.correction_patterns:
+                for match in re.finditer(pattern, line, re.IGNORECASE):
+                    groups = match.groups()
+                    if len(groups) != 2:
+                        continue
+                    
+                    # Handle order based on pattern
+                    if reverse_order:
+                        correct = groups[0].strip()
+                        incorrect = groups[1].strip()
+                    else:
+                        incorrect = groups[0].strip()
+                        correct = groups[1].strip()
+                    
+                    # Skip if empty or duplicate
+                    key = (incorrect.lower(), correct.lower())
+                    if not incorrect or not correct or key in seen:
+                        continue
+                    
+                    mistake_type = self._categorize_mistake(incorrect, correct)
                     mistakes.append({
-                        'incorrect': context,
-                        'correct': '',  # Would need AI to suggest
-                        'type': error_type,
-                        'context': context
+                        'incorrect': incorrect,
+                        'correct': correct,
+                        'type': mistake_type,
+                        'context': match.group(0)[:100],
+                        'rule': self._get_grammar_rule(mistake_type)
                     })
-                    seen.add(context.lower())
+                    seen.add(key)
         
-        return mistakes[:15]  # Return top 15 mistakes
+        # Fallback: look for student utterances followed by teacher corrections
+        for i in range(len(lines) - 1):
+            if not re.search(r'Student', lines[i], re.IGNORECASE):
+                continue
+            if not re.search(r'Teacher', lines[i+1], re.IGNORECASE):
+                continue
+            
+            student_text = re.sub(r'^.*?Student[^:]*:\s*', '', lines[i], flags=re.IGNORECASE).strip()
+            teacher_text = re.sub(r'^.*?Teacher[^:]*:\s*', '', lines[i+1], flags=re.IGNORECASE).strip()
+            
+            # Simple heuristic: if teacher line is short and similar, it's likely a correction
+            if 5 < len(teacher_text) < 50 and student_text and teacher_text:
+                # Check if they're similar but different
+                student_words = set(student_text.lower().split())
+                teacher_words = set(teacher_text.lower().split())
+                overlap = len(student_words & teacher_words) / max(len(student_words), 1)
+                
+                if 0.3 < overlap < 0.9:  # Some overlap but not identical
+                    key = (student_text[:50].lower(), teacher_text[:50].lower())
+                    if key not in seen:
+                        mistake_type = self._categorize_mistake(student_text, teacher_text)
+                        mistakes.append({
+                            'incorrect': student_text[:100],
+                            'correct': teacher_text[:100],
+                            'type': mistake_type,
+                            'context': f"{student_text[:50]}... → {teacher_text[:50]}...",
+                            'rule': self._get_grammar_rule(mistake_type)
+                        })
+                        seen.add(key)
+        
+        return mistakes[:15]
     
     def _categorize_mistake(self, incorrect: str, correct: str) -> str:
         """Categorize the type of mistake"""
@@ -128,7 +136,7 @@ class MistakeExtractor:
         
         return 'grammar_general'
     
-    def _get_grammar_rule(self, incorrect: str, correct: str, mistake_type: str) -> str:
+    def _get_grammar_rule(self, mistake_type: str) -> str:
         """Get a brief grammar rule explanation"""
         rules = {
             'grammar_verb_tense': 'Use correct verb tense (present simple, past simple, etc.)',
