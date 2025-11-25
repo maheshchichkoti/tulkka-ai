@@ -25,8 +25,11 @@ def verify_jwt(token: str) -> Dict[str, Any]:
     """Verify JWT and return payload, raise JWTValidationError if invalid"""
     if not token:
         raise JWTValidationError("Missing token")
+    if not settings.JWT_SECRET:
+        logger.error("JWT_SECRET not configured - rejecting all tokens in production")
+        raise JWTValidationError("Server misconfigured: JWT_SECRET not set")
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET or "", algorithms=[settings.JWT_ALGORITHM])
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
         return payload
     except JWTError as e:
         raise JWTValidationError(f"Invalid token: {e}")

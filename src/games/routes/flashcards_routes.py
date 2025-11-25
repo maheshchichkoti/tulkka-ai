@@ -159,24 +159,3 @@ async def flashcard_stats(user=Depends(get_current_user)):
     """
     stats = await execute_query(q, (user['userId'],), fetchone=True)
     return {"totals": stats or {"total_sessions":0,"completed_sessions":0,"avg_score":0,"total_correct":0,"total_incorrect":0}}
-
-@router.delete("/word-lists/{list_id}/words/{word_id}", status_code=204)
-async def delete_word(list_id: str, word_id: str, user=Depends(get_current_user)):
-    """Delete a word from a word list (idempotent)"""
-    from src.games.dao import words_dao
-
-    word = await words_dao.get_word(word_id, list_id)
-    if word:
-        await words_dao.delete_word(word_id, list_id)
-    # Always return 204 so repeated deletes are safe
-    return None
-
-@router.delete("/word-lists/{list_id}", status_code=204)
-async def delete_word_list(list_id: str, user=Depends(get_current_user)):
-    """Delete a word list (idempotent)"""
-    from src.games.dao import wordlists_dao
-
-    wl = await wordlists_dao.get_wordlist_by_id(list_id, user['userId'])
-    if wl:
-        await wordlists_dao.delete_wordlist(list_id, user['userId'])
-    return None

@@ -18,7 +18,17 @@ services:
       - ./sql/mysql_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
       - ./sql/seed_game_data.sql:/docker-entrypoint-initdb.d/02-seed.sql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-p${MYSQL_ROOT_PASSWORD:-rootpassword}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -45,11 +55,32 @@ services:
     volumes:
       - ./api.log:/app/api.log
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - tulkka_network
+
+  # Background Worker for Zoom lesson processing
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tulkka_worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+    command: ["python", "run_worker.py"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      api:
+        condition: service_healthy
     networks:
       - tulkka_network
 

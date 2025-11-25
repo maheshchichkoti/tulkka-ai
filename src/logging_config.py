@@ -3,7 +3,15 @@ import logging
 from logging.handlers import RotatingFileHandler
 from .config import settings
 
+_logging_configured = False
+
+
 def configure_logging():
+    """Configure logging once. Safe to call multiple times."""
+    global _logging_configured
+    if _logging_configured:
+        return
+    
     level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
     logger = logging.getLogger()
     logger.setLevel(level)
@@ -20,6 +28,5 @@ def configure_logging():
     fh = RotatingFileHandler("tulkka.log", maxBytes=10 * 1024 * 1024, backupCount=5)
     fh.setFormatter(formatter)
     logger.addHandler(fh)
-
-# Configure on import
-configure_logging()
+    
+    _logging_configured = True

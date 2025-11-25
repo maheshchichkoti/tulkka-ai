@@ -38,7 +38,7 @@ class Settings:
 
     # Groq AI
     GROQ_API_KEY: Optional[str] = os.getenv("GROQ_API_KEY")
-    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama3-70b-8192")
+    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
     
     # Security
     JWT_SECRET: Optional[str] = os.getenv("JWT_SECRET")
