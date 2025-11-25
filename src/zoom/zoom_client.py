@@ -26,6 +26,15 @@ class ZoomAPI:
         headers = {"Authorization": f"Bearer {token}"}
         params = {"from": from_date, "to": to_date, "page_size": 100}
         r = requests.get(url, headers=headers, params=params, timeout=20)
+        
+        # If 401, try refreshing token once and retry
+        if r.status_code == 401:
+            logger.warning("Zoom API returned 401, refreshing token and retrying...")
+            token = self.tm.refresh()
+            if token:
+                headers = {"Authorization": f"Bearer {token}"}
+                r = requests.get(url, headers=headers, params=params, timeout=20)
+        
         r.raise_for_status()
         return r.json()
 
@@ -35,5 +44,14 @@ class ZoomAPI:
             raise RuntimeError("Zoom access token not available")
         headers = {"Authorization": f"Bearer {token}"}
         r = requests.get(download_url, headers=headers, timeout=120, stream=True)
+        
+        # If 401, try refreshing token once and retry
+        if r.status_code == 401:
+            logger.warning("Zoom download returned 401, refreshing token and retrying...")
+            token = self.tm.refresh()
+            if token:
+                headers = {"Authorization": f"Bearer {token}"}
+                r = requests.get(download_url, headers=headers, timeout=120, stream=True)
+        
         r.raise_for_status()
         return r.content

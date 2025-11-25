@@ -7,15 +7,24 @@ class MistakeExtractor:
     
     def __init__(self):
         # Patterns that capture (incorrect, correct) pairs
+        # These work with or without quotes around the phrases
         self.correction_patterns = [
-            # "not X, say Y" or "not X, it's Y"
+            # "not X, say Y" or "not X, it's Y" (with quotes)
             (r"(?:not|don't\s+say)\s+['\"]([^'\"]+)['\"]\s*,?\s*(?:say|use|it's)\s+['\"]([^'\"]+)['\"]", False),
-            # "instead of X, use Y"
+            # "instead of X, use Y" (with quotes)
             (r"instead\s+of\s+['\"]([^'\"]+)['\"]\s*,?\s*(?:use|say)\s+['\"]([^'\"]+)['\"]", False),
-            # "X should be Y"
+            # "X should be Y" (with quotes)
             (r"['\"]([^'\"]+)['\"]\s+should\s+be\s+['\"]([^'\"]+)['\"]", False),
-            # "should be Y (not X)" - reversed order
+            # "should be Y (not X)" - reversed order (with quotes)
             (r"should\s+be\s+['\"]([^'\"]+)['\"]\s*(?:not|instead\s+of)\s+['\"]([^'\"]+)['\"]", True),
+            # "Correction: X" or "Correct: X" or "The correct sentence is X"
+            (r"(?:correction|correct(?:ion)?|the correct (?:sentence|form|way) is)[:\s]+(.+?)(?:\.|$)", None),
+            # "It should be X" or "Should be X"
+            (r"(?:it )?should be[:\s]+(.+?)(?:\.|$)", None),
+            # "Better: X" or "Better to say X"
+            (r"better(?:\s+to\s+say)?[:\s]+(.+?)(?:\.|$)", None),
+            # "Careful! X" pattern
+            (r"careful!?[:\s]+(.+?)(?:\.|$)", None),
         ]
     
     def extract(self, transcript: str) -> List[Dict[str, str]]:
@@ -23,22 +32,53 @@ class MistakeExtractor:
         mistakes = []
         seen = set()
         
-        # Split into lines
-        lines = transcript.split('\n')
+        # Split into lines - handle both newlines and speaker labels
+        lines = re.split(r'\n|(?=(?:Teacher|Student)[^:]*:)', transcript)
+        lines = [l.strip() for l in lines if l.strip()]
         
-        # Extract explicit teacher corrections
+        # Track last student utterance for context
+        last_student_text = ""
+        
         for i, line in enumerate(lines):
+            # Track student utterances
+            if re.search(r'Student', line, re.IGNORECASE):
+                last_student_text = re.sub(r'^.*?Student[^:]*:\s*', '', line, flags=re.IGNORECASE).strip()
+                continue
+            
+            # Look for teacher corrections
             if not re.search(r'Teacher', line, re.IGNORECASE):
                 continue
             
+            teacher_text = re.sub(r'^.*?Teacher[^:]*:\s*', '', line, flags=re.IGNORECASE).strip()
+            
             # Try each correction pattern
             for pattern, reverse_order in self.correction_patterns:
-                for match in re.finditer(pattern, line, re.IGNORECASE):
+                for match in re.finditer(pattern, teacher_text, re.IGNORECASE):
                     groups = match.groups()
+                    
+                    # Single-group patterns (correction only, use last student text as incorrect)
+                    if reverse_order is None:
+                        if len(groups) >= 1 and groups[0]:
+                            correct = groups[0].strip().rstrip('.')
+                            incorrect = last_student_text
+                            if correct and incorrect and correct.lower() != incorrect.lower():
+                                key = (incorrect.lower()[:50], correct.lower()[:50])
+                                if key not in seen:
+                                    mistake_type = self._categorize_mistake(incorrect, correct)
+                                    mistakes.append({
+                                        'incorrect': incorrect[:100],
+                                        'correct': correct[:100],
+                                        'type': mistake_type,
+                                        'context': match.group(0)[:100],
+                                        'rule': self._get_grammar_rule(mistake_type)
+                                    })
+                                    seen.add(key)
+                        continue
+                    
+                    # Two-group patterns (both incorrect and correct captured)
                     if len(groups) != 2:
                         continue
                     
-                    # Handle order based on pattern
                     if reverse_order:
                         correct = groups[0].strip()
                         incorrect = groups[1].strip()
@@ -46,15 +86,14 @@ class MistakeExtractor:
                         incorrect = groups[0].strip()
                         correct = groups[1].strip()
                     
-                    # Skip if empty or duplicate
-                    key = (incorrect.lower(), correct.lower())
+                    key = (incorrect.lower()[:50], correct.lower()[:50])
                     if not incorrect or not correct or key in seen:
                         continue
                     
                     mistake_type = self._categorize_mistake(incorrect, correct)
                     mistakes.append({
-                        'incorrect': incorrect,
-                        'correct': correct,
+                        'incorrect': incorrect[:100],
+                        'correct': correct[:100],
                         'type': mistake_type,
                         'context': match.group(0)[:100],
                         'rule': self._get_grammar_rule(mistake_type)
@@ -62,6 +101,7 @@ class MistakeExtractor:
                     seen.add(key)
         
         # Fallback: look for student utterances followed by teacher corrections
+        # This handles conversational patterns without explicit correction markers
         for i in range(len(lines) - 1):
             if not re.search(r'Student', lines[i], re.IGNORECASE):
                 continue
@@ -71,14 +111,18 @@ class MistakeExtractor:
             student_text = re.sub(r'^.*?Student[^:]*:\s*', '', lines[i], flags=re.IGNORECASE).strip()
             teacher_text = re.sub(r'^.*?Teacher[^:]*:\s*', '', lines[i+1], flags=re.IGNORECASE).strip()
             
-            # Simple heuristic: if teacher line is short and similar, it's likely a correction
-            if 5 < len(teacher_text) < 50 and student_text and teacher_text:
-                # Check if they're similar but different
+            # Skip if teacher is asking a question or giving praise
+            if teacher_text.endswith('?') or re.search(r'^(good|nice|great|excellent|perfect)', teacher_text, re.IGNORECASE):
+                continue
+            
+            # Check if teacher text looks like a correction (similar structure, different words)
+            if 5 < len(teacher_text) < 100 and student_text and teacher_text:
                 student_words = set(student_text.lower().split())
                 teacher_words = set(teacher_text.lower().split())
                 overlap = len(student_words & teacher_words) / max(len(student_words), 1)
                 
-                if 0.3 < overlap < 0.9:  # Some overlap but not identical
+                # Some overlap but not identical - likely a correction
+                if 0.2 < overlap < 0.95:
                     key = (student_text[:50].lower(), teacher_text[:50].lower())
                     if key not in seen:
                         mistake_type = self._categorize_mistake(student_text, teacher_text)

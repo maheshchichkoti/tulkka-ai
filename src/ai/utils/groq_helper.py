@@ -48,17 +48,21 @@ class GroqHelper:
             return []
 
         system_prompt = (
-            "You are an expert ESL teacher. Extract the most important vocabulary "
-            "words or short phrases from lesson transcripts."
+            "You are an expert ESL teacher. Extract individual vocabulary words "
+            "and short phrases (2-3 words max) from lesson transcripts. "
+            "Focus on single words like verbs, nouns, adjectives, and short expressions."
         )
         user_prompt = f"""
 Transcript:
 {transcript[:2500]}
 
 Instructions:
-1. Return up to {max_words} words/phrases useful for learners.
-2. Prioritize corrections, mistakes, key concepts, and practical expressions.
-3. Output strictly as JSON array with objects containing word, context, difficulty.
+1. Return up to {max_words} vocabulary items useful for learners.
+2. Each item should be a SINGLE WORD or SHORT PHRASE (2-3 words maximum).
+3. DO NOT include full sentences. Examples of good items: "wake up", "sleep", "comfortable", "shopping"
+4. Examples of BAD items (too long): "What is your name", "I like to sleep too"
+5. Prioritize: verbs, nouns, adjectives, phrasal verbs, common expressions
+6. Output strictly as JSON array with objects: word, translation (Hebrew), example_sentence, difficulty
 """
 
         response_text = self._chat(system_prompt, user_prompt)
@@ -74,10 +78,15 @@ Instructions:
             word = item.get("word", "").strip()
             if not word or word.lower() in seen:
                 continue
+            # Skip items that are too long (more than 4 words = likely a sentence)
+            if len(word.split()) > 4:
+                logger.debug("Skipping too-long vocabulary item: %s", word[:50])
+                continue
             cleaned.append(
                 {
                     "word": word,
-                    "context": item.get("context") or f"Sample usage of {word}",
+                    "translation": item.get("translation", ""),
+                    "context": item.get("example_sentence") or item.get("context") or "",
                     "difficulty": item.get("difficulty", "intermediate"),
                 }
             )

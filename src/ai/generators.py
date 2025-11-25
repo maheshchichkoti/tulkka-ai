@@ -186,8 +186,15 @@ def generate_flashcards(
         word = (vocab_item.get("word") or "").strip()
         if not word:
             continue
+        # Skip items that look like full sentences (more than 5 words)
+        if len(word.split()) > 5:
+            logger.debug("Skipping too-long flashcard word: %s", word[:50])
+            continue
         translation = (vocab_item.get("translation") or "").strip() or _translate(word, translator)
-        example = next((s for s in sentences if word.lower() in s.lower()), None)
+        # Use context from vocab item first, then search transcript
+        example = vocab_item.get("context") or vocab_item.get("example_sentence")
+        if not example:
+            example = next((s for s in sentences if word.lower() in s.lower()), None)
         cards.append(Flashcard(
             id=str(uuid.uuid4()),
             word=word,

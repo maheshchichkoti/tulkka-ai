@@ -131,6 +131,23 @@ def process_row(row: Dict[str, Any]):
         
         transcript_file = has_transcript_file(files)
         audio_file = has_audio_files(files)
+        
+        # Log what files we found for debugging
+        logger.info(
+            "Row %s: Found %d recording files. Transcript file: %s, Audio file: %s",
+            row_id,
+            len(files),
+            transcript_file.get('recording_type') if transcript_file else None,
+            audio_file.get('recording_type') if audio_file else None,
+        )
+        if audio_file:
+            file_size = audio_file.get('file_size', 0)
+            logger.info(
+                "Row %s: Audio file size=%s bytes, type=%s",
+                row_id,
+                file_size,
+                audio_file.get('file_type'),
+            )
 
         transcript_text = ""
         transcription_source = None
@@ -154,14 +171,25 @@ def process_row(row: Dict[str, Any]):
                 aai_helper = AssemblyAIHelper()
                 
                 if aai_helper.enabled:
-                    logger.info("Transcribing audio with AssemblyAI for row %s", row_id)
-                    result = aai_helper.transcribe_audio(download_url)
+                    logger.info("Downloading audio with Zoom auth for row %s", row_id)
+                    # Download audio using authenticated Zoom client
+                    audio_bytes = zoom_api.download_file(download_url)
+                    logger.info("Downloaded %d bytes, uploading to AssemblyAI for row %s", len(audio_bytes), row_id)
+                    
+                    # Upload bytes to AssemblyAI for transcription
+                    result = aai_helper.transcribe_audio_bytes(audio_bytes)
                     if result and result.get('text'):
                         transcript_text = result['text']
                         transcription_source = "assemblyai"
                         logger.info("AssemblyAI transcription completed: %d chars", len(transcript_text))
                     else:
-                        logger.warning("AssemblyAI transcription failed for row %s", row_id)
+                        duration = result.get('duration') if result else None
+                        logger.warning(
+                            "AssemblyAI transcription failed for row %s (audio duration=%ss). "
+                            "If duration is very short, this recording may not be a real lesson.",
+                            row_id,
+                            duration,
+                        )
                         transcription_source = "audio_file_no_transcript"
                 else:
                     logger.warning("AssemblyAI not available, downloading audio only")

@@ -38,6 +38,7 @@ class ZoomTokenManager:
             logger.warning("Zoom refresh credentials missing.")
             return self.access_token
 
+        logger.info("🔄 Refreshing Zoom access token...")
         token_url = "https://zoom.us/oauth/token"
         headers = {
             "Authorization": f"Basic {self._encode_credentials()}",
@@ -49,11 +50,17 @@ class ZoomTokenManager:
             r.raise_for_status()
             payload = r.json()
             self.access_token = payload.get("access_token", self.access_token)
-            self.refresh_token = payload.get("refresh_token", self.refresh_token)
+            new_refresh_token = payload.get("refresh_token")
+            if new_refresh_token:
+                self.refresh_token = new_refresh_token
+                logger.info("✅ Zoom token refreshed successfully. New refresh token received.")
+            else:
+                logger.info("✅ Zoom token refreshed successfully. Using existing refresh token.")
             expires_in = payload.get("expires_in", 3600)
             self.expires_at = datetime.utcnow() + timedelta(seconds=max(60, expires_in - 120))
-            logger.info("Zoom token refreshed, expires in %ss", expires_in)
+            logger.info("🕐 New access token expires in %ss", expires_in)
             return self.access_token
         except Exception as e:
-            logger.exception("Zoom token refresh failed: %s", e)
+            logger.error("❌ Zoom token refresh failed: %s", e)
+            logger.exception("Full error details:")
             return self.access_token
