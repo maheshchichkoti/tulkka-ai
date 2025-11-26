@@ -120,7 +120,7 @@ async def list_word_lists(
     limit: int = Query(20, ge=1, le=100),
     search: Optional[str] = None,
     favorite: Optional[bool] = None,
-    sort: Optional[str] = Query("createdAt", regex="^(name|createdAt|updatedAt)$"),
+    sort: Optional[str] = Query("createdAt", pattern="^(name|createdAt|updatedAt)$"),
     user=Depends(get_current_user)
 ):
     """GET /v1/word-lists - List user's word lists with pagination."""
