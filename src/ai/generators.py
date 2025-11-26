@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-# Translation support (default English → Hebrew, code "iw")
+# Translation support (default English → Hebrew, code "he")
 try:
     from deep_translator import GoogleTranslator
     TRANSLATE_AVAILABLE = True
@@ -19,7 +19,7 @@ except ImportError:  # pragma: no cover - optional dependency
     TRANSLATE_AVAILABLE = False
 
 
-def _build_translator(target_lang: str = 'iw') -> Optional[GoogleTranslator]:
+def _build_translator(target_lang: str = 'he') -> Optional[GoogleTranslator]:
     if not TRANSLATE_AVAILABLE or not GoogleTranslator:
         return None
     try:
@@ -112,10 +112,11 @@ class GrammarQuestion:
             "id": self.id,
             "prompt": self.prompt,
             "options": self.options,
-            "correct_index": self.correct_index,
+            "correctIndex": self.correct_index,  # camelCase for frontend compatibility
             "correct_answer": self.options[self.correct_index],
             "explanation": self.explanation,
             "category": self.category,
+            "lesson": self.category,  # Use category as lesson for now
             "difficulty": self.difficulty,
             "student_mistake": self.student_mistake,
             "focus": self.focus,
@@ -138,13 +139,18 @@ class SentenceItem:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
-            "english_sentence": self.english_sentence,
-            "sentence_tokens": self.sentence_tokens,
-            "accepted_sequences": self.accepted_sequences,
+            "english": self.english_sentence,  # Frontend expects 'english'
+            "english_sentence": self.english_sentence,  # Keep for backward compat
+            "tokens": self.sentence_tokens,  # Frontend expects 'tokens'
+            "sentence_tokens": self.sentence_tokens,  # Keep for backward compat
+            "accepted": self.accepted_sequences,  # Frontend expects 'accepted'
+            "accepted_sequences": self.accepted_sequences,  # Keep for backward compat
             "distractors": self.distractors,
             "translation": self.translation,
             "hint": self.hint,
             "difficulty": self.difficulty,
+            "topic": None,  # Can be set by backend if needed
+            "lesson": None,  # Can be set by backend if needed
             "metadata": self.metadata,
         }
 
@@ -176,7 +182,7 @@ def generate_flashcards(
     transcript: str,
     *,
     limit: int = 12,
-    target_lang: str = 'iw'
+    target_lang: str = 'he'
 ) -> List[Dict[str, Any]]:
     translator = _build_translator(target_lang)
     cards: List[Flashcard] = []
@@ -190,7 +196,8 @@ def generate_flashcards(
         if len(word.split()) > 5:
             logger.debug("Skipping too-long flashcard word: %s", word[:50])
             continue
-        translation = (vocab_item.get("translation") or "").strip() or _translate(word, translator)
+        # Always translate using our configured translator so the language is consistent (Hebrew).
+        translation = _translate(word, translator)
         # Use context from vocab item first, then search transcript
         example = vocab_item.get("context") or vocab_item.get("example_sentence")
         if not example:
@@ -333,7 +340,7 @@ def generate_sentence_items(
     sentences: List[Dict[str, str]],
     *,
     limit: int = 8,
-    target_lang: str = 'iw'
+    target_lang: str = 'he'
 ) -> List[Dict[str, Any]]:
     translator = _build_translator(target_lang)
     items: List[SentenceItem] = []

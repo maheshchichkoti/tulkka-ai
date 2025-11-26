@@ -26,9 +26,23 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         "/api/v1/exercises",
     }
 
+    # All games endpoints are intentionally public (no JWT required in this service)
+    # Updated to match TULKKA Games APIs spec route prefixes
+    GAMES_PUBLIC_PREFIXES = (
+        "/v1/flashcards",
+        "/v1/word-lists",
+        "/v1/spelling",
+        "/v1/grammar-challenge",
+        "/v1/advanced-cloze",
+        "/v1/sentence-builder",
+    )
+
     def _is_public(self, path: str) -> bool:
         if path in self.PUBLIC_PATHS:
             return True
+        for prefix in self.GAMES_PUBLIC_PREFIXES:
+            if path.startswith(prefix):
+                return True
         return path.startswith("/docs") or path.startswith("/redoc")
 
     async def dispatch(self, request: Request, call_next):

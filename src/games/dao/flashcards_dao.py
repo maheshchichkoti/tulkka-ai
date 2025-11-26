@@ -75,6 +75,7 @@ class FlashcardsDAO:
             q = """
             UPDATE flashcard_sessions
             SET completed_at = UTC_TIMESTAMP(),
+                status = 'completed',
                 progress_current = %s,
                 progress_total = %s,
                 correct = %s,
@@ -92,5 +93,5 @@ class FlashcardsDAO:
                 ),
             )
         else:
-            q = "UPDATE flashcard_sessions SET completed_at = UTC_TIMESTAMP() WHERE id = %s"
+            q = "UPDATE flashcard_sessions SET completed_at = UTC_TIMESTAMP(), status = 'completed' WHERE id = %s"
             await execute_query(q, (session_id,))

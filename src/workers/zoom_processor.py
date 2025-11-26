@@ -91,26 +91,143 @@ def process_row(row: Dict[str, Any]):
                         to_date=meeting_date
                     )
                 except Exception as zoom_err:
-                    logger.exception(f"Zoom API call failed for row {row_id}: {zoom_err}")
-                    mark_failed(
-                        row_id,
-                        f"Failed to fetch recordings from Zoom API: {str(zoom_err)}. Check Zoom credentials and API access.",
-                        int((row.get("processing_attempts") or 0) + 1)
-                    )
+                    err_str = str(zoom_err)
+                    # Handle specific HTTP errors with cleaner messages (no stack trace)
+                    if "404" in err_str:
+                        logger.warning(
+                            f"Zoom user not found for row {row_id}: '{teacher_email}' does not exist in your Zoom account or has no recording access."
+                        )
+                        logger.info(
+                            "METRIC:zoom_user_not_found user=%s row=%s",
+                            teacher_email,
+                            row_id,
+                        )
+                        mark_failed(
+                            row_id,
+                            f"Zoom user '{teacher_email}' not found. Verify this email exists in your Zoom account with cloud recording permissions.",
+                            int((row.get("processing_attempts") or 0) + 1)
+                        )
+                    elif "401" in err_str or "403" in err_str:
+                        logger.warning(f"Zoom authentication failed for row {row_id}: {err_str}")
+                        logger.info(
+                            "METRIC:zoom_auth_error user=%s row=%s",
+                            teacher_email,
+                            row_id,
+                        )
+                        mark_failed(
+                            row_id,
+                            f"Zoom authentication failed. Check ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET, and ZOOM_ACCOUNT_ID in .env.",
+                            int((row.get("processing_attempts") or 0) + 1)
+                        )
+                    elif "getaddrinfo failed" in err_str or "NameResolutionError" in err_str:
+                        logger.warning(f"Network/DNS error for row {row_id}: Cannot reach api.zoom.us. Check your internet connection.")
+                        logger.info(
+                            "METRIC:zoom_network_error user=%s row=%s",
+                            teacher_email,
+                            row_id,
+                        )
+                        mark_failed(
+                            row_id,
+                            f"Network error: Cannot reach Zoom API. Check internet/DNS connectivity.",
+                            int((row.get("processing_attempts") or 0) + 1)
+                        )
+                    else:
+                        logger.exception(f"Zoom API call failed for row {row_id}: {zoom_err}")
+                        mark_failed(
+                            row_id,
+                            f"Failed to fetch recordings from Zoom API: {err_str}. Check Zoom credentials and API access.",
+                            int((row.get("processing_attempts") or 0) + 1)
+                        )
                     return
                 
                 meetings = zoom_response.get("meetings", [])
                 logger.info(f"Found {len(meetings)} meetings for {teacher_email} on {meeting_date}")
-                
-                # Filter by time range if provided
+
+                # Try to select the *correct* meeting in a robust way:
+                # 1) If meeting_id is known, prefer an exact/partial ID match.
+                # 2) Otherwise, if start_time is provided, pick the meeting whose start time-of-day
+                #    (HH:MM) is closest to the expected start_time, within a reasonable window.
+                # 3) Fallback: first meeting that has any recording_files (previous behaviour).
                 matching_meeting = None
-                for meeting in meetings:
-                    meeting_start = meeting.get("start_time", "")
-                    # Simple match - can be enhanced with time range filtering
-                    if meeting.get("recording_files"):
-                        matching_meeting = meeting
-                        logger.info(f"Found meeting with recordings: {meeting.get('topic')}")
-                        break
+                meeting_id = row.get("meeting_id")
+
+                # 1) Exact meeting_id match if available
+                if meeting_id:
+                    meeting_id_str = str(meeting_id)
+                    for m in meetings:
+                        mid = str(m.get("id") or m.get("uuid") or "")
+                        if not mid:
+                            continue
+                        if mid == meeting_id_str or meeting_id_str in mid:
+                            if m.get("recording_files"):
+                                matching_meeting = m
+                                logger.info(
+                                    "Selected meeting by meeting_id match for row %s: id=%s topic=%s",
+                                    row_id,
+                                    mid,
+                                    m.get("topic"),
+                                )
+                                break
+
+                # 2) If no meeting_id match, try closest start time-of-day
+                if not matching_meeting and start_time:
+                    # start_time comes from backend as HH:MM or HH:MM:SS; normalise to HH:MM
+                    target_hm = str(start_time)[:5]
+                    target_minutes = None
+                    try:
+                        h, m = target_hm.split(":", 1)
+                        target_minutes = int(h) * 60 + int(m)
+                    except Exception:
+                        logger.debug("Could not parse start_time '%s' for row %s", start_time, row_id)
+
+                    if target_minutes is not None:
+                        best_diff = None
+                        best_meeting = None
+                        for m in meetings:
+                            mst = (m.get("start_time") or "")
+                            # Zoom start_time is ISO-8601; extract HH:MM from the time part
+                            if len(mst) >= 16:
+                                hm = mst[11:16]
+                                try:
+                                    hh, mm = hm.split(":", 1)
+                                    mins = int(hh) * 60 + int(mm)
+                                except Exception:
+                                    continue
+                                diff = abs(mins - target_minutes)
+                                if best_diff is None or diff < best_diff:
+                                    if m.get("recording_files"):
+                                        best_diff = diff
+                                        best_meeting = m
+
+                        # Only accept if within a reasonable window (e.g. +/- 90 minutes)
+                        if best_meeting is not None:
+                            if best_diff is not None and best_diff <= 90:
+                                matching_meeting = best_meeting
+                                logger.info(
+                                    "Selected meeting by closest start time for row %s (diff=%s min): %s",
+                                    row_id,
+                                    best_diff,
+                                    best_meeting.get("start_time"),
+                                )
+                            else:
+                                logger.info(
+                                    "Closest meeting start time diff=%s min for row %s is outside window; "
+                                    "falling back to first recording.",
+                                    best_diff,
+                                    row_id,
+                                )
+
+                # 3) Fallback: first meeting with any recording_files
+                if not matching_meeting:
+                    for meeting in meetings:
+                        if meeting.get("recording_files"):
+                            matching_meeting = meeting
+                            logger.info(
+                                "Selected first meeting with recordings as fallback for row %s: %s",
+                                row_id,
+                                meeting.get("topic"),
+                            )
+                            break
                 
                 if matching_meeting:
                     files = matching_meeting.get("recording_files", [])
@@ -118,6 +235,12 @@ def process_row(row: Dict[str, Any]):
                 else:
                     # No recordings found - mark as failed with helpful message
                     logger.warning(f"No Zoom recordings found for {teacher_email} on {meeting_date}")
+                    logger.info(
+                        "METRIC:zoom_no_recordings user=%s date=%s row=%s",
+                        teacher_email,
+                        meeting_date,
+                        row_id,
+                    )
                     mark_failed(
                         row_id, 
                         f"No Zoom recordings available for {teacher_email} on {meeting_date}. Recording may not be ready yet or recording was not enabled for this meeting.",
@@ -159,6 +282,11 @@ def process_row(row: Dict[str, Any]):
                 content = content_bytes.decode("utf-8", errors="ignore")
                 transcript_text = clean_vtt_transcript(content)
                 transcription_source = "zoom_native_transcript"
+                logger.info(
+                    "METRIC:transcription_success source=zoom_native row=%s length=%s",
+                    row_id,
+                    len(transcript_text or ""),
+                )
             except Exception:
                 logger.exception("Failed downloading transcript file for row %s", row_id)
                 raise
@@ -182,15 +310,45 @@ def process_row(row: Dict[str, Any]):
                         transcript_text = result['text']
                         transcription_source = "assemblyai"
                         logger.info("AssemblyAI transcription completed: %d chars", len(transcript_text))
+                        logger.info(
+                            "METRIC:transcription_success source=assemblyai row=%s length=%s",
+                            row_id,
+                            len(transcript_text or ""),
+                        )
                     else:
                         duration = result.get('duration') if result else None
                         logger.warning(
-                            "AssemblyAI transcription failed for row %s (audio duration=%ss). "
-                            "If duration is very short, this recording may not be a real lesson.",
+                            "AssemblyAI transcription returned empty text for row %s (audio duration=%ss). "
+                            "This usually means the recording is too short or has no clear speech.",
                             row_id,
                             duration,
                         )
+                        # Provide a clear, user-facing reason in last_error so the backend can see why
+                        # this lesson cannot produce a transcript or exercises.
+                        attempts = int((row.get("processing_attempts") or 0) + 1)
+                        if duration is not None and duration <= 5:
+                            logger.info(
+                                "METRIC:transcription_too_short row=%s duration=%s",
+                                row_id,
+                                duration,
+                            )
+                            error_msg = (
+                                f"Recording too short ({duration}s). Not enough speech to generate a transcript "
+                                "or exercises. This is usually a quick test or accidental join."
+                            )
+                        else:
+                            logger.info(
+                                "METRIC:transcription_empty_text row=%s duration=%s",
+                                row_id,
+                                duration,
+                            )
+                            error_msg = (
+                                "AssemblyAI transcription returned empty text. "
+                                "Check that the Zoom recording has clear speech and is not silent."
+                            )
+                        mark_failed(row_id, error_msg, attempts)
                         transcription_source = "audio_file_no_transcript"
+                        return
                 else:
                     logger.warning("AssemblyAI not available, downloading audio only")
                     audio_bytes = zoom_api.download_file(download_url)
@@ -201,6 +359,7 @@ def process_row(row: Dict[str, Any]):
         else:
             # No transcript or audio files in the recording
             logger.warning("No transcript or audio files found in recording for row %s", row_id)
+            logger.info("METRIC:zoom_recording_no_audio row=%s", row_id)
             mark_failed(
                 row_id,
                 "Zoom recording exists but contains no transcript or audio files. Recording may still be processing.",
@@ -211,9 +370,11 @@ def process_row(row: Dict[str, Any]):
         # Minimal validation - we must have a non-empty transcript
         if not transcript_text:
             logger.warning("Transcript extraction resulted in empty text for row %s", row_id)
+            logger.info("METRIC:transcription_empty_text_generic row=%s", row_id)
             mark_failed(
                 row_id,
-                "Transcript extraction failed or resulted in empty text",
+                "Transcript extraction failed or resulted in empty text. This usually means the recording "
+                "contained no speech or only a few seconds of audio.",
                 int((row.get("processing_attempts") or 0) + 1)
             )
             return
