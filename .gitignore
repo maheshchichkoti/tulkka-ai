@@ -53,3 +53,10 @@ ENV/
 # Output files (optional)
 # data/output/*.csv
 # data/output/*.xlsx
+
+# Code quality
+.mypy_cache/
+.ruff_cache/
+.coverage.*
+coverage.xml
+.pytest_cache/

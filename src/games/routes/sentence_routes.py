@@ -270,7 +270,6 @@ async def get_sentence_items(
 # =============================================================================
 # Session Endpoints
 # =============================================================================
-
 @router.post("/sessions", status_code=201)
 async def start_sentence_session(
     payload: SentenceSessionStart,
@@ -278,22 +277,27 @@ async def start_sentence_session(
     idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
     user=Depends(get_current_user)
 ):
-    """POST /v1/sentence-builder/sessions - Start a new sentence session."""
     pool = await get_pool_instance()
     user_id = user["userId"]
     dao = GamesDAO(pool)
-    
-    # Check idempotency
+
+    # Idempotency
     if idempotency_key:
         cached = await check_idempotency(pool, user_id, "/v1/sentence-builder/sessions", idempotency_key)
         if cached:
             return JSONResponse(status_code=201, content=cached)
-    
+
+    limit = payload.limit or 8   # default 8 if not provided
+
     items = []
     item_ids = []
-    
+
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
+
+            # ────────────────────────────────────────────
+            # CUSTOM MODE
+            # ────────────────────────────────────────────
             if payload.mode == "custom" and payload.selectedItemIds:
                 placeholders = ",".join(["%s"] * len(payload.selectedItemIds))
                 await cur.execute(
@@ -301,64 +305,78 @@ async def start_sentence_session(
                     SELECT le.id, le.lesson_id, le.exercise_data, le.topic_id, le.difficulty, le.hint
                     FROM lesson_exercises le
                     JOIN lessons l ON l.id = le.lesson_id
-                    WHERE le.id IN ({placeholders}) AND le.exercise_type = 'sentence_builder' AND l.status = 'approved'
+                    WHERE le.id IN ({placeholders})
+                      AND le.exercise_type = 'sentence_builder'
+                      AND l.status = 'approved'
                     """,
                     payload.selectedItemIds
                 )
                 rows = await cur.fetchall()
-                
+
                 found_ids = {row[0] for row in rows}
                 invalid_ids = [iid for iid in payload.selectedItemIds if iid not in found_ids]
                 if invalid_ids:
                     raise_error(400, ErrorCodes.UNKNOWN_ITEM, "Unknown item IDs", {"invalidIds": invalid_ids})
-                
+
+            # ────────────────────────────────────────────
+            # MISTAKES MODE
+            # ────────────────────────────────────────────
             elif payload.mode == "mistakes":
-                mistake_ids = await dao.get_mistake_item_ids(user_id, "sentence_builder", payload.limit or 20)
+                mistake_ids = await dao.get_mistake_item_ids(user_id, "sentence_builder", limit)
                 if not mistake_ids:
                     raise_error(400, ErrorCodes.VALIDATION_ERROR, "No mistakes to review")
-                
+
                 placeholders = ",".join(["%s"] * len(mistake_ids))
                 await cur.execute(
                     f"""
                     SELECT le.id, le.lesson_id, le.exercise_data, le.topic_id, le.difficulty, le.hint
                     FROM lesson_exercises le
                     JOIN lessons l ON l.id = le.lesson_id
-                    WHERE le.id IN ({placeholders}) AND le.exercise_type = 'sentence_builder' AND l.status = 'approved'
+                    WHERE le.id IN ({placeholders})
+                      AND le.exercise_type = 'sentence_builder'
+                      AND l.status = 'approved'
                     """,
                     mistake_ids
                 )
                 rows = await cur.fetchall()
-                
+
+            # ────────────────────────────────────────────
+            # LESSON MODE
+            # ────────────────────────────────────────────
             elif payload.mode == "lesson" and payload.lessonId:
                 await cur.execute(
                     """
                     SELECT le.id, le.lesson_id, le.exercise_data, le.topic_id, le.difficulty, le.hint
                     FROM lesson_exercises le
                     JOIN lessons l ON l.id = le.lesson_id
-                    WHERE le.lesson_id = %s AND le.exercise_type = 'sentence_builder' AND l.status = 'approved'
+                    WHERE le.lesson_id = %s
+                      AND le.exercise_type = 'sentence_builder'
+                      AND l.status = 'approved'
                     ORDER BY le.created_at
                     LIMIT %s
                     """,
-                    (payload.lessonId, 8)
+                    (payload.lessonId, limit)
                 )
                 rows = await cur.fetchall()
-                
+
+            # ────────────────────────────────────────────
+            # TOPIC MODE (DEFAULT)
+            # ────────────────────────────────────────────
             else:
-                # Topic mode (default)
                 where_clauses = ["le.exercise_type = 'sentence_builder'", "l.status = 'approved'"]
                 params = []
-                
+
                 if payload.topicId:
                     where_clauses.append("le.topic_id = %s")
                     params.append(payload.topicId)
-                
+
                 if payload.difficulty:
                     where_clauses.append("le.difficulty = %s")
                     params.append(payload.difficulty)
-                
+
                 where_sql = " AND ".join(where_clauses)
-                params.append(8)  # Fixed limit of 8 items per session
-                
+                params.append(limit)
+
                 await cur.execute(
                     f"""
                     SELECT le.id, le.lesson_id, le.exercise_data, le.topic_id, le.difficulty, le.hint
@@ -371,13 +389,13 @@ async def start_sentence_session(
                     params
                 )
                 rows = await cur.fetchall()
-            
+
             if not rows:
                 raise_error(400, ErrorCodes.VALIDATION_ERROR, "No items available")
-            
+
             items = [item_to_response(row, include_answer=True) for row in rows]
             item_ids = [i["id"] for i in items]
-    
+
     # Create session
     session = await dao.create_session(
         user_id=user_id,
@@ -389,11 +407,10 @@ async def start_sentence_session(
         mode=payload.mode,
         difficulty=payload.difficulty
     )
-    
-    # Reorder items to match session order
+
     item_map = {i["id"]: i for i in items}
     ordered_items = [item_map[iid] for iid in session["itemOrder"] if iid in item_map]
-    
+
     response = {
         "id": session["id"],
         "mode": payload.mode,
@@ -405,10 +422,10 @@ async def start_sentence_session(
         "startedAt": session["startedAt"],
         "completedAt": None
     }
-    
+
     if idempotency_key:
         await store_idempotency(pool, user_id, "/v1/sentence-builder/sessions", idempotency_key, response)
-    
+
     return JSONResponse(
         status_code=201,
         content=response,

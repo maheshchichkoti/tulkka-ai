@@ -245,7 +245,6 @@ async def get_grammar_questions(
 # =============================================================================
 # Session Endpoints
 # =============================================================================
-
 @router.post("/sessions", status_code=201)
 async def start_grammar_session(
     payload: GrammarSessionStart,
@@ -274,9 +273,12 @@ async def start_grammar_session(
                 placeholders = ",".join(["%s"] * len(payload.selectedQuestionIds))
                 await cur.execute(
                     f"""
-                    SELECT id, lesson_id, exercise_data, topic_id, difficulty, hint
-                    FROM lesson_exercises
-                    WHERE id IN ({placeholders}) AND exercise_type = 'grammar' AND status = 'approved'
+                    SELECT le.id, le.lesson_id, le.exercise_data, le.topic_id, le.difficulty, le.hint
+                    FROM lesson_exercises le
+                    JOIN lessons l ON l.id = le.lesson_id
+                    WHERE le.id IN ({placeholders})
+                      AND le.exercise_type = 'grammar_challenge'
+                      AND l.status = 'approved'
                     """,
                     payload.selectedQuestionIds
                 )
@@ -297,9 +299,12 @@ async def start_grammar_session(
                 placeholders = ",".join(["%s"] * len(mistake_ids))
                 await cur.execute(
                     f"""
-                    SELECT id, lesson_id, exercise_data, topic_id, difficulty, hint
-                    FROM lesson_exercises
-                    WHERE id IN ({placeholders}) AND exercise_type = 'grammar'
+                    SELECT le.id, le.lesson_id, le.exercise_data, le.topic_id, le.difficulty, le.hint
+                    FROM lesson_exercises le
+                    JOIN lessons l ON l.id = le.lesson_id
+                    WHERE le.id IN ({placeholders})
+                      AND le.exercise_type = 'grammar_challenge'
+                      AND l.status = 'approved'
                     """,
                     mistake_ids
                 )
@@ -309,10 +314,13 @@ async def start_grammar_session(
                 # Lesson mode
                 await cur.execute(
                     """
-                    SELECT id, lesson_id, exercise_data, topic_id, difficulty, hint
-                    FROM lesson_exercises
-                    WHERE lesson_id = %s AND exercise_type = 'grammar' AND status = 'approved'
-                    ORDER BY created_at
+                    SELECT le.id, le.lesson_id, le.exercise_data, le.topic_id, le.difficulty, le.hint
+                    FROM lesson_exercises le
+                    JOIN lessons l ON l.id = le.lesson_id
+                    WHERE le.lesson_id = %s
+                      AND le.exercise_type = 'grammar_challenge'
+                      AND l.status = 'approved'
+                    ORDER BY le.created_at
                     LIMIT %s
                     """,
                     (payload.lessonId, payload.limit or 20)
@@ -321,15 +329,15 @@ async def start_grammar_session(
                 
             else:
                 # Topic mode (default)
-                where_clauses = ["exercise_type = 'grammar'", "status = 'approved'"]
+                where_clauses = ["le.exercise_type = 'grammar_challenge'", "l.status = 'approved'"]
                 params = []
                 
                 if payload.categoryId:
-                    where_clauses.append("topic_id = %s")
+                    where_clauses.append("le.topic_id = %s")
                     params.append(payload.categoryId)
                 
                 if payload.difficulty:
-                    where_clauses.append("difficulty = %s")
+                    where_clauses.append("le.difficulty = %s")
                     params.append(payload.difficulty)
                 
                 where_sql = " AND ".join(where_clauses)
@@ -337,8 +345,9 @@ async def start_grammar_session(
                 
                 await cur.execute(
                     f"""
-                    SELECT id, lesson_id, exercise_data, topic_id, difficulty, hint
-                    FROM lesson_exercises
+                    SELECT le.id, le.lesson_id, le.exercise_data, le.topic_id, le.difficulty, le.hint
+                    FROM lesson_exercises le
+                    JOIN lessons l ON l.id = le.lesson_id
                     WHERE {where_sql}
                     ORDER BY RAND()
                     LIMIT %s

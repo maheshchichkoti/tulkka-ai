@@ -25,27 +25,27 @@ router = APIRouter(prefix="/v1", tags=["Games - Flashcards"])
 # =============================================================================
 
 class WordListCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=120)
-    description: Optional[str] = None
+    name: str = Field(..., min_length=1, max_length=120, example="Animals")
+    description: Optional[str] = Field(None, example="My list of animal words")
 
 
 class WordListUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=120)
-    description: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=120, example="Animals")
+    description: Optional[str] = Field(None, example="My list of animal words")
     isFavorite: Optional[bool] = None
 
 
 class WordCreate(BaseModel):
-    word: str = Field(..., min_length=1, max_length=120)
-    translation: str = Field(..., min_length=1, max_length=240)
-    notes: Optional[str] = None
+    word: str = Field(..., min_length=1, max_length=120, example="Cat")
+    translation: str = Field(..., min_length=1, max_length=240, example="Kissa")
+    notes: Optional[str] = Field(None, example="Notes about the word")
     isFavorite: Optional[bool] = False
 
 
 class WordUpdate(BaseModel):
-    word: Optional[str] = Field(None, min_length=1, max_length=120)
-    translation: Optional[str] = Field(None, min_length=1, max_length=240)
-    notes: Optional[str] = None
+    word: Optional[str] = Field(None, min_length=1, max_length=120, example="Cat")
+    translation: Optional[str] = Field(None, min_length=1, max_length=240, example="Kissa")
+    notes: Optional[str] = Field(None, example="Notes about the word")
     isFavorite: Optional[bool] = None
 
 
@@ -213,7 +213,29 @@ async def list_word_lists(
     return paginate(data, page, limit, total)
 
 
-@router.post("/word-lists", status_code=201)
+@router.post(
+    "/word-lists",
+    status_code=201,
+    summary="Create a new word list",
+    responses={
+        201: {
+            "description": "Word list created",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": "uuid",
+                        "name": "Animals",
+                        "description": "My list of animal words",
+                        "wordCount": 0,
+                        "isFavorite": False,
+                        "createdAt": "2025-01-01T00:00:00Z",
+                        "updatedAt": "2025-01-01T00:00:00Z"
+                    }
+                }
+            }
+        }
+    }
+)
 async def create_word_list(
     payload: WordListCreate,
     user=Depends(get_current_user)
