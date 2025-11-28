@@ -20,11 +20,26 @@ except ImportError:  # pragma: no cover - optional dependency
 
 
 def _build_translator(target_lang: str = 'he') -> Optional[GoogleTranslator]:
+    """Build a GoogleTranslator instance with normalized language codes.
+
+    The deep_translator / Google layer may still expect legacy codes for some
+    languages (e.g. Hebrew uses ``iw`` instead of ``he``). We keep ``'he'`` as
+    the public default for the rest of the app, but normalize it here so that
+    all existing callers continue to work without errors.
+    """
+
     if not TRANSLATE_AVAILABLE or not GoogleTranslator:
         return None
+
+    # Normalize common aliases to the codes expected by the underlying library.
+    normalized = (target_lang or '').strip().lower()
+    # Hebrew: modern code is "he", but some stacks still use legacy "iw".
+    if normalized in {"he", "he-il", "hebrew"}:
+        normalized = "iw"
+
     try:
-        return GoogleTranslator(source='en', target=target_lang)
-    except Exception as exc:  # pragma: no cover - network failure
+        return GoogleTranslator(source='en', target=normalized)
+    except Exception as exc:  # pragma: no cover - network / provider failure
         logger.warning("Translator init failed (%s). Falling back to empty translations", exc)
         return None
 

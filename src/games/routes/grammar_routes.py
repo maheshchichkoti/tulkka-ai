@@ -94,11 +94,12 @@ async def get_grammar_categories(
         async with conn.cursor() as cur:
             await cur.execute(
                 """
-                SELECT DISTINCT topic_id, topic_name, COUNT(*) as questionCount
-                FROM lesson_exercises
-                WHERE exercise_type = 'grammar' AND status = 'approved'
-                GROUP BY topic_id, topic_name
-                ORDER BY topic_name
+                SELECT DISTINCT le.topic_id, le.topic_name, COUNT(*) as questionCount
+                FROM lesson_exercises le
+                JOIN lessons l ON l.id = le.lesson_id
+                WHERE le.exercise_type = 'grammar_challenge' AND l.status = 'approved'
+                GROUP BY le.topic_id, le.topic_name
+                ORDER BY le.topic_name
                 """
             )
             rows = await cur.fetchall()
@@ -126,7 +127,7 @@ async def get_grammar_lessons(
     
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
-            where_clauses = ["le.exercise_type = 'grammar'", "le.status = 'approved'"]
+            where_clauses = ["le.exercise_type = 'grammar_challenge'", "l.status = 'approved'"]
             params = []
             
             if categoryId:
@@ -194,35 +195,43 @@ async def get_grammar_questions(
     
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
-            where_clauses = ["exercise_type = 'grammar'", "status = 'approved'"]
+            where_clauses = ["le.exercise_type = 'grammar_challenge'", "l.status = 'approved'"]
             params = []
             
             if categoryId:
-                where_clauses.append("topic_id = %s")
+                where_clauses.append("le.topic_id = %s")
                 params.append(categoryId)
             
             if lessonId:
-                where_clauses.append("lesson_id = %s")
+                where_clauses.append("le.lesson_id = %s")
                 params.append(lessonId)
             
             if difficulty:
-                where_clauses.append("difficulty = %s")
+                where_clauses.append("le.difficulty = %s")
                 params.append(difficulty)
             
             where_sql = " AND ".join(where_clauses)
             
             # Get total
-            await cur.execute(f"SELECT COUNT(*) FROM lesson_exercises WHERE {where_sql}", params)
+            await cur.execute(
+                f"""
+                SELECT COUNT(*) FROM lesson_exercises le
+                JOIN lessons l ON l.id = le.lesson_id
+                WHERE {where_sql}
+                """,
+                params
+            )
             total = (await cur.fetchone())[0]
             
             # Get paginated questions
             offset = (page - 1) * limit
             await cur.execute(
                 f"""
-                SELECT id, lesson_id, exercise_data, topic_id, difficulty, hint
-                FROM lesson_exercises
+                SELECT le.id, le.lesson_id, le.exercise_data, le.topic_id, le.difficulty, le.hint
+                FROM lesson_exercises le
+                JOIN lessons l ON l.id = le.lesson_id
                 WHERE {where_sql}
-                ORDER BY created_at DESC
+                ORDER BY le.created_at DESC
                 LIMIT %s OFFSET %s
                 """,
                 params + [limit, offset]

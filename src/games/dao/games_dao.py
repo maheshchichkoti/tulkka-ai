@@ -142,12 +142,12 @@ class GamesDAO:
                 
                 current, total, correct, incorrect, mastered_json, needs_json = row
                 
-                # Parse JSON arrays
-                mastered = json.loads(mastered_json) if mastered_json else []
-                needs_practice = json.loads(needs_json) if needs_json else []
+                # Parse JSON arrays (handle NULL safely)
+                mastered = json.loads(mastered_json or '[]') if mastered_json else []
+                needs_practice = json.loads(needs_json or '[]') if needs_json else []
                 
-                # Update counters
-                new_current = current + 1
+                # Update counters (cap at total to prevent overflow)
+                new_current = min(current + 1, total)
                 new_correct = correct + (1 if is_correct else 0)
                 new_incorrect = incorrect + (0 if is_correct else 1)
                 
@@ -158,6 +158,9 @@ class GamesDAO:
                     if item_id in needs_practice:
                         needs_practice.remove(item_id)
                 else:
+                    # Remove from mastered if previously correct but now incorrect
+                    if item_id in mastered:
+                        mastered.remove(item_id)
                     if item_id not in needs_practice:
                         needs_practice.append(item_id)
                 
@@ -328,13 +331,24 @@ class GamesDAO:
         game_type: str,
         item_id: str
     ) -> None:
-        """Remove a mistake when user gets it correct."""
+        """Decrement mistake count when user gets it correct. Delete if count reaches 0."""
         async with self.pool.acquire() as conn:
             async with conn.cursor() as cur:
+                # Decrement mistake_count, delete if it becomes 0
+                await cur.execute(
+                    """
+                    UPDATE user_mistakes
+                    SET mistake_count = mistake_count - 1,
+                        updated_at = NOW()
+                    WHERE user_id = %s AND game_type = %s AND item_id = %s
+                    """,
+                    (user_id, game_type, item_id)
+                )
+                # Delete rows where mistake_count <= 0
                 await cur.execute(
                     """
                     DELETE FROM user_mistakes
-                    WHERE user_id = %s AND game_type = %s AND item_id = %s
+                    WHERE user_id = %s AND game_type = %s AND item_id = %s AND mistake_count <= 0
                     """,
                     (user_id, game_type, item_id)
                 )
@@ -405,7 +419,7 @@ class GamesDAO:
                     """
                     SELECT item_id FROM user_mistakes
                     WHERE user_id = %s AND game_type = %s
-                    ORDER BY last_answered_at DESC
+                    ORDER BY mistake_count DESC, last_answered_at DESC
                     LIMIT %s
                     """,
                     (user_id, game_type, limit)

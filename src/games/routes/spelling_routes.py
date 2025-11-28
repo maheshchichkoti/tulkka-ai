@@ -152,7 +152,7 @@ async def start_spelling_session(
                            created_at, updated_at
                     FROM words WHERE list_id = %s
                     ORDER BY created_at DESC
-                    LIMIT 200
+                    LIMIT 8
                     """,
                     (payload.wordListId,)
                 )
@@ -172,7 +172,7 @@ async def start_spelling_session(
         item_ids=word_ids,
         shuffle=payload.shuffle if payload.shuffle is not None else True,
         word_list_id=payload.wordListId,
-        mode="custom" if payload.selectedWordIds else "topic"
+        mode="custom" if payload.selectedWordIds else "normal"
     )
     
     # Reorder words to match session order
@@ -293,10 +293,12 @@ async def record_spelling_result(
                 raise_error(400, ErrorCodes.UNKNOWN_WORD, "Word not found")
             correct_word = word_row[0]
     
-    # Server-side validation of correctness (if userAnswer provided)
-    is_correct = payload.isCorrect
+    # Server-side validation of correctness (ALWAYS compute server-side, ignore payload.isCorrect)
+    is_correct = False
     if payload.userAnswer and not payload.skipped:
         is_correct = check_spelling(payload.userAnswer, correct_word)
+    elif payload.skipped:
+        is_correct = False
     
     # Insert result
     await dao.insert_result(
@@ -321,7 +323,11 @@ async def record_spelling_result(
                 UPDATE words SET
                     practice_count = practice_count + 1,
                     correct_count = correct_count + %s,
-                    accuracy = ROUND(100 * (correct_count + %s) / (practice_count + 1)),
+                    accuracy = CASE 
+                        WHEN practice_count + 1 > 0 
+                        THEN ROUND(100 * (correct_count + %s) / (practice_count + 1))
+                        ELSE 0 
+                    END,
                     last_practiced = NOW()
                 WHERE id = %s
                 """,

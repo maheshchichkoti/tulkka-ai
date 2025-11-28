@@ -54,9 +54,20 @@ class FavoriteRequest(BaseModel):
 
 
 class FlashcardSessionStart(BaseModel):
-    wordListId: str
+    """Start a flashcard session with one of these modes:
+    - mode='custom' + wordListId: Practice user's word list
+    - mode='lesson' + lessonId: Practice teacher-approved flashcards from a lesson
+    - mode='topic' + topicId: Practice teacher-approved flashcards by topic
+    - mode='mistakes': Practice previously incorrect words
+    """
+    mode: str = Field("custom", pattern="^(topic|lesson|custom|mistakes)$")
+    wordListId: Optional[str] = None
+    lessonId: Optional[str] = None
+    topicId: Optional[str] = None
+    difficulty: Optional[str] = Field(None, pattern="^(easy|medium|hard)$")
     selectedWordIds: Optional[List[str]] = None
     shuffle: Optional[bool] = False
+    limit: Optional[int] = Field(None, ge=1, le=100)
 
 
 class FlashcardResult(BaseModel):
@@ -94,6 +105,40 @@ def word_to_response(row: tuple) -> dict:
         "lastPracticed": row[8].isoformat() + "Z" if row[8] else None,
         "createdAt": row[9].isoformat() + "Z" if row[9] else None,
         "updatedAt": row[10].isoformat() + "Z" if row[10] else None
+    }
+
+
+def _exercise_to_flashcard(row: tuple) -> dict:
+    """Convert a lesson_exercises row to flashcard format.
+    
+    Row format: (id, exercise_data, difficulty, hint, explanation)
+    exercise_data JSON contains: word, translation, example_sentence, notes, etc.
+    """
+    import json
+    exercise_id = row[0]
+    exercise_data = row[1]
+    difficulty = row[2]
+    hint = row[3]
+    explanation = row[4]
+    
+    # Parse exercise_data if it's a string
+    if isinstance(exercise_data, str):
+        exercise_data = json.loads(exercise_data)
+    
+    return {
+        "id": exercise_id,
+        "word": exercise_data.get("word", ""),
+        "translation": exercise_data.get("translation", ""),
+        "notes": exercise_data.get("notes") or hint or "",
+        "exampleSentence": exercise_data.get("example_sentence") or exercise_data.get("exampleSentence"),
+        "difficulty": difficulty or exercise_data.get("difficulty", "medium"),
+        "explanation": explanation,
+        "isFavorite": False,
+        "practiceCount": 0,
+        "correctCount": 0,
+        "accuracy": 0,
+        "lastPracticed": None,
+        "source": "lesson"
     }
 
 
@@ -565,6 +610,134 @@ async def toggle_word_favorite(
 
 
 # =============================================================================
+# Flashcard Catalog (Topics & Lessons for teacher-approved content)
+# =============================================================================
+
+@router.get("/flashcards/topics")
+async def list_flashcard_topics(user=Depends(get_current_user)):
+    """GET /v1/flashcards/topics - List available topics with flashcards."""
+    pool = await get_pool_instance()
+    
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT DISTINCT le.topic_id, le.topic_name, COUNT(*) as item_count
+                FROM lesson_exercises le
+                JOIN lessons l ON l.id = le.lesson_id
+                WHERE le.exercise_type = 'flashcards' AND l.status = 'approved' AND le.topic_id IS NOT NULL
+                GROUP BY le.topic_id, le.topic_name
+                ORDER BY le.topic_name
+                """
+            )
+            rows = await cur.fetchall()
+    
+    topics = [
+        {"id": row[0], "name": row[1] or row[0], "itemCount": row[2]}
+        for row in rows
+    ]
+    return {"topics": topics}
+
+
+@router.get("/flashcards/lessons")
+async def list_flashcard_lessons(
+    topicId: Optional[str] = Query(None),
+    user=Depends(get_current_user)
+):
+    """GET /v1/flashcards/lessons - List lessons with flashcards."""
+    pool = await get_pool_instance()
+    
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            if topicId:
+                await cur.execute(
+                    """
+                    SELECT l.id, l.title, l.lesson_date, le.topic_id, COUNT(le.id) as item_count
+                    FROM lessons l
+                    JOIN lesson_exercises le ON le.lesson_id = l.id
+                    WHERE l.status = 'approved' AND le.exercise_type = 'flashcards' AND le.topic_id = %s
+                    GROUP BY l.id, l.title, l.lesson_date, le.topic_id
+                    ORDER BY l.lesson_date DESC
+                    """,
+                    (topicId,)
+                )
+            else:
+                await cur.execute(
+                    """
+                    SELECT l.id, l.title, l.lesson_date, le.topic_id, COUNT(le.id) as item_count
+                    FROM lessons l
+                    JOIN lesson_exercises le ON le.lesson_id = l.id
+                    WHERE l.status = 'approved' AND le.exercise_type = 'flashcards'
+                    GROUP BY l.id, l.title, l.lesson_date, le.topic_id
+                    ORDER BY l.lesson_date DESC
+                    """
+                )
+            rows = await cur.fetchall()
+    
+    lessons = [
+        {
+            "id": row[0],
+            "title": row[1] or f"Lesson {row[0][:8]}",
+            "lessonDate": row[2].isoformat() if row[2] else None,
+            "topicId": row[3],
+            "itemCount": row[4]
+        }
+        for row in rows
+    ]
+    return {"lessons": lessons}
+
+
+@router.get("/flashcards/mistakes")
+async def list_flashcard_mistakes(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
+    user=Depends(get_current_user)
+):
+    """GET /v1/flashcards/mistakes - List user's flashcard mistakes."""
+    pool = await get_pool_instance()
+    user_id = user["userId"]
+    
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            # Get total count
+            await cur.execute(
+                "SELECT COUNT(*) FROM user_mistakes WHERE user_id = %s AND game_type = 'flashcards'",
+                (user_id,)
+            )
+            total = (await cur.fetchone())[0]
+            
+            # Get paginated mistakes
+            offset = (page - 1) * limit
+            await cur.execute(
+                """
+                SELECT um.item_id, um.user_answer, um.correct_answer, um.last_answered_at,
+                       w.word, w.translation
+                FROM user_mistakes um
+                LEFT JOIN words w ON w.id = um.item_id
+                WHERE um.user_id = %s AND um.game_type = 'flashcards'
+                ORDER BY um.last_answered_at DESC
+                LIMIT %s OFFSET %s
+                """,
+                (user_id, limit, offset)
+            )
+            rows = await cur.fetchall()
+    
+    data = [
+        {
+            "itemId": row[0],
+            "userAnswer": row[1],
+            "correctAnswer": row[2],
+            "lastAnsweredAt": row[3].isoformat() + "Z" if row[3] else None,
+            "word": row[4],
+            "translation": row[5]
+        }
+        for row in rows
+    ]
+    
+    return paginate(data, page, limit, total)
+
+
+# =============================================================================
 # Flashcard Sessions
 # =============================================================================
 
@@ -575,9 +748,17 @@ async def start_flashcard_session(
     idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
     user=Depends(get_current_user)
 ):
-    """POST /v1/flashcards/sessions - Start a new flashcard session."""
+    """POST /v1/flashcards/sessions - Start a new flashcard session.
+    
+    Modes:
+    - custom: Practice user's word list (requires wordListId)
+    - lesson: Practice teacher-approved flashcards from a lesson (requires lessonId)
+    - topic: Practice teacher-approved flashcards by topic (requires topicId)
+    - mistakes: Practice previously incorrect words
+    """
     pool = await get_pool_instance()
     user_id = user["userId"]
+    dao = GamesDAO(pool)
     
     # Check idempotency
     if idempotency_key:
@@ -585,76 +766,226 @@ async def start_flashcard_session(
         if cached:
             return JSONResponse(status_code=201, content=cached)
     
+    items = []
+    item_ids = []
+    word_list_id = None
+    lesson_id = None
+    topic_id = None
+    limit = payload.limit or 50
+    
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
-            # Verify word list exists and belongs to user
-            await cur.execute(
-                "SELECT id FROM word_lists WHERE id = %s AND user_id = %s",
-                (payload.wordListId, user_id)
-            )
-            if not await cur.fetchone():
-                raise_error(404, ErrorCodes.WORD_LIST_NOT_FOUND, "Word list not found")
             
-            # Get words
-            if payload.selectedWordIds:
-                # Validate selected word IDs
-                placeholders = ",".join(["%s"] * len(payload.selectedWordIds))
+            # ─────────────────────────────────────────────────────────────
+            # MODE: custom - User's word list
+            # ─────────────────────────────────────────────────────────────
+            if payload.mode == "custom":
+                if not payload.wordListId:
+                    raise_error(400, ErrorCodes.VALIDATION_ERROR, "wordListId required for custom mode")
+                
+                # Verify word list exists and belongs to user
+                await cur.execute(
+                    "SELECT id FROM word_lists WHERE id = %s AND user_id = %s",
+                    (payload.wordListId, user_id)
+                )
+                if not await cur.fetchone():
+                    raise_error(404, ErrorCodes.WORD_LIST_NOT_FOUND, "Word list not found")
+                
+                word_list_id = payload.wordListId
+                
+                # Get words
+                if payload.selectedWordIds:
+                    placeholders = ",".join(["%s"] * len(payload.selectedWordIds))
+                    await cur.execute(
+                        f"""
+                        SELECT id, word, translation, notes, is_favorite,
+                               practice_count, correct_count, accuracy, last_practiced,
+                               created_at, updated_at
+                        FROM words WHERE id IN ({placeholders}) AND list_id = %s
+                        """,
+                        payload.selectedWordIds + [payload.wordListId]
+                    )
+                    word_rows = await cur.fetchall()
+                    
+                    found_ids = {row[0] for row in word_rows}
+                    invalid_ids = [wid for wid in payload.selectedWordIds if wid not in found_ids]
+                    if invalid_ids:
+                        raise_error(400, ErrorCodes.UNKNOWN_WORD, "Unknown word IDs", {"invalidIds": invalid_ids})
+                else:
+                    await cur.execute(
+                        """
+                        SELECT id, word, translation, notes, is_favorite,
+                               practice_count, correct_count, accuracy, last_practiced,
+                               created_at, updated_at
+                        FROM words WHERE list_id = %s
+                        ORDER BY created_at DESC
+                        LIMIT %s
+                        """,
+                        (payload.wordListId, limit)
+                    )
+                    word_rows = await cur.fetchall()
+                
+                if not word_rows:
+                    raise_error(400, ErrorCodes.VALIDATION_ERROR, "No words available for practice")
+                
+                items = [word_to_response(row) for row in word_rows]
+                item_ids = [w["id"] for w in items]
+            
+            # ─────────────────────────────────────────────────────────────
+            # MODE: lesson - Teacher-approved flashcards from a lesson
+            # ─────────────────────────────────────────────────────────────
+            elif payload.mode == "lesson":
+                if not payload.lessonId:
+                    raise_error(400, ErrorCodes.VALIDATION_ERROR, "lessonId required for lesson mode")
+                
+                # Verify lesson exists and is approved
+                await cur.execute(
+                    "SELECT id, title FROM lessons WHERE id = %s AND status = 'approved'",
+                    (payload.lessonId,)
+                )
+                lesson_row = await cur.fetchone()
+                if not lesson_row:
+                    raise_error(404, ErrorCodes.LESSON_NOT_FOUND, "Lesson not found or not approved")
+                
+                lesson_id = payload.lessonId
+                
+                # Get flashcard exercises from lesson
+                difficulty_filter = ""
+                params = [payload.lessonId]
+                if payload.difficulty:
+                    difficulty_filter = " AND difficulty = %s"
+                    params.append(payload.difficulty)
+                
+                await cur.execute(
+                    f"""
+                    SELECT id, exercise_data, difficulty, hint, explanation
+                    FROM lesson_exercises 
+                    WHERE lesson_id = %s AND exercise_type = 'flashcards' {difficulty_filter}
+                    LIMIT %s
+                    """,
+                    params + [limit]
+                )
+                exercise_rows = await cur.fetchall()
+                
+                if not exercise_rows:
+                    raise_error(400, ErrorCodes.VALIDATION_ERROR, "No flashcards available for this lesson")
+                
+                items = [_exercise_to_flashcard(row) for row in exercise_rows]
+                item_ids = [item["id"] for item in items]
+            
+            # ─────────────────────────────────────────────────────────────
+            # MODE: topic - Teacher-approved flashcards by topic
+            # ─────────────────────────────────────────────────────────────
+            elif payload.mode == "topic":
+                if not payload.topicId:
+                    raise_error(400, ErrorCodes.VALIDATION_ERROR, "topicId required for topic mode")
+                
+                topic_id = payload.topicId
+                
+                # Get flashcard exercises by topic from approved lessons
+                difficulty_filter = ""
+                params = [payload.topicId]
+                if payload.difficulty:
+                    difficulty_filter = " AND le.difficulty = %s"
+                    params.append(payload.difficulty)
+                
+                await cur.execute(
+                    f"""
+                    SELECT le.id, le.exercise_data, le.difficulty, le.hint, le.explanation
+                    FROM lesson_exercises le
+                    JOIN lessons l ON l.id = le.lesson_id
+                    WHERE le.topic_id = %s AND le.exercise_type = 'flashcards' AND l.status = 'approved' {difficulty_filter}
+                    LIMIT %s
+                    """,
+                    params + [limit]
+                )
+                exercise_rows = await cur.fetchall()
+                
+                if not exercise_rows:
+                    raise_error(400, ErrorCodes.VALIDATION_ERROR, "No flashcards available for this topic")
+                
+                items = [_exercise_to_flashcard(row) for row in exercise_rows]
+                item_ids = [item["id"] for item in items]
+            
+            # ─────────────────────────────────────────────────────────────
+            # MODE: mistakes - Practice previously incorrect words
+            # ─────────────────────────────────────────────────────────────
+            elif payload.mode == "mistakes":
+                # Get user's mistakes for flashcards
+                await cur.execute(
+                    """
+                    SELECT item_id FROM user_mistakes 
+                    WHERE user_id = %s AND game_type = 'flashcards'
+                    ORDER BY last_answered_at DESC
+                    LIMIT %s
+                    """,
+                    (user_id, limit)
+                )
+                mistake_rows = await cur.fetchall()
+                
+                if not mistake_rows:
+                    raise_error(400, ErrorCodes.VALIDATION_ERROR, "No mistakes to practice")
+                
+                mistake_ids = [row[0] for row in mistake_rows]
+                
+                # Try to fetch from words table first (user-created)
+                placeholders = ",".join(["%s"] * len(mistake_ids))
                 await cur.execute(
                     f"""
                     SELECT id, word, translation, notes, is_favorite,
                            practice_count, correct_count, accuracy, last_practiced,
                            created_at, updated_at
-                    FROM words WHERE id IN ({placeholders}) AND list_id = %s
+                    FROM words WHERE id IN ({placeholders})
                     """,
-                    payload.selectedWordIds + [payload.wordListId]
+                    mistake_ids
                 )
                 word_rows = await cur.fetchall()
                 
-                # Check for invalid IDs
-                found_ids = {row[0] for row in word_rows}
-                invalid_ids = [wid for wid in payload.selectedWordIds if wid not in found_ids]
-                if invalid_ids:
-                    raise_error(400, ErrorCodes.UNKNOWN_WORD, "Unknown word IDs", {"invalidIds": invalid_ids})
+                if word_rows:
+                    items = [word_to_response(row) for row in word_rows]
+                    item_ids = [w["id"] for w in items]
+                else:
+                    # Try lesson_exercises
+                    await cur.execute(
+                        f"""
+                        SELECT id, exercise_data, difficulty, hint, explanation
+                        FROM lesson_exercises WHERE id IN ({placeholders})
+                        """,
+                        mistake_ids
+                    )
+                    exercise_rows = await cur.fetchall()
+                    if exercise_rows:
+                        items = [_exercise_to_flashcard(row) for row in exercise_rows]
+                        item_ids = [item["id"] for item in items]
+                    else:
+                        raise_error(400, ErrorCodes.VALIDATION_ERROR, "No mistakes to practice")
+            
             else:
-                # Use all words from list (with server cap)
-                await cur.execute(
-                    """
-                    SELECT id, word, translation, notes, is_favorite,
-                           practice_count, correct_count, accuracy, last_practiced,
-                           created_at, updated_at
-                    FROM words WHERE list_id = %s
-                    ORDER BY created_at DESC
-                    LIMIT 200
-                    """,
-                    (payload.wordListId,)
-                )
-                word_rows = await cur.fetchall()
-            
-            if not word_rows:
-                raise_error(400, ErrorCodes.VALIDATION_ERROR, "No words available for practice")
-            
-            words = [word_to_response(row) for row in word_rows]
-            word_ids = [w["id"] for w in words]
+                raise_error(400, ErrorCodes.VALIDATION_ERROR, f"Invalid mode: {payload.mode}")
     
     # Create session using GamesDAO
-    dao = GamesDAO(pool)
     session = await dao.create_session(
         user_id=user_id,
         game_type="flashcards",
-        item_ids=word_ids,
+        item_ids=item_ids,
         shuffle=payload.shuffle or False,
-        word_list_id=payload.wordListId,
-        mode="custom" if payload.selectedWordIds else "topic"
+        word_list_id=word_list_id,
+        lesson_id=lesson_id,
+        topic_id=topic_id,
+        mode=payload.mode
     )
     
-    # Reorder words to match session order
-    word_map = {w["id"]: w for w in words}
-    ordered_words = [word_map[wid] for wid in session["itemOrder"] if wid in word_map]
+    # Reorder items to match session order
+    item_map = {item["id"]: item for item in items}
+    ordered_items = [item_map[iid] for iid in session["itemOrder"] if iid in item_map]
     
     response = {
         "id": session["id"],
-        "wordListId": payload.wordListId,
-        "words": ordered_words,
+        "mode": payload.mode,
+        "wordListId": word_list_id,
+        "lessonId": lesson_id,
+        "topicId": topic_id,
+        "words": ordered_items,  # Use "words" for backward compatibility
         "progress": session["progress"],
         "startedAt": session["startedAt"],
         "completedAt": None

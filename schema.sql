@@ -60,8 +60,8 @@ CREATE TABLE IF NOT EXISTS game_sessions (
     progress_total      INT DEFAULT 0,
     correct_count       INT DEFAULT 0,
     incorrect_count     INT DEFAULT 0,
-    mastered_ids        JSON,
-    needs_practice_ids  JSON,
+    mastered_ids        JSON DEFAULT ('[]'),
+    needs_practice_ids  JSON DEFAULT ('[]'),
     started_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
     completed_at        DATETIME,
     status              ENUM('active','completed','abandoned') DEFAULT 'active',
@@ -124,14 +124,20 @@ CREATE TABLE IF NOT EXISTS lessons (
     id                  VARCHAR(36) PRIMARY KEY,
     class_id            VARCHAR(36) NOT NULL,
     teacher_id          VARCHAR(36) NOT NULL,
+    student_id          VARCHAR(36),
     lesson_number       INT NOT NULL,
     title               VARCHAR(255),
     lesson_date         DATE,
-    transcript          LONGTEXT,
-    transcript_length   INT DEFAULT 0,
-    status              ENUM('pending','processing','completed','failed') DEFAULT 'pending',
+    zoom_summary_id     VARCHAR(36),          -- Reference to Supabase zoom_summaries.id
+    status              ENUM('pending','approved','rejected') DEFAULT 'pending',
+    approved_at         DATETIME,
+    approved_by         VARCHAR(36),
     created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_class_id (class_id),
+    INDEX idx_teacher_id (teacher_id),
+    INDEX idx_student_id (student_id),
+    INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================  
@@ -140,16 +146,19 @@ CREATE TABLE IF NOT EXISTS lessons (
 CREATE TABLE IF NOT EXISTS lesson_exercises (
     id                  VARCHAR(36) PRIMARY KEY,
     lesson_id           VARCHAR(36) NOT NULL,
-    exercise_type       ENUM('flashcard','spelling','grammar','cloze','sentence') NOT NULL,
+    exercise_type       ENUM('flashcards','spelling_bee','grammar_challenge','advanced_cloze','sentence_builder') NOT NULL,
     topic_id            VARCHAR(50),
     topic_name          VARCHAR(100),
-    exercise_data       JSON NOT NULL,
+    exercise_data       JSON NOT NULL,           -- The actual exercise item (question, options, correct answer, etc.)
     difficulty          ENUM('easy','medium','hard') DEFAULT 'medium',
     hint                TEXT,
-    status              ENUM('pending','approved','rejected') DEFAULT 'pending',
+    explanation         TEXT,
     created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_lesson_id (lesson_id),
+    INDEX idx_exercise_type (exercise_type),
+    INDEX idx_topic_id (topic_id),
+    INDEX idx_difficulty (difficulty),
     CONSTRAINT fk_exercises_lessons FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

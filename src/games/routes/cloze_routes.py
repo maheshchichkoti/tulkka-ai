@@ -90,11 +90,12 @@ async def get_cloze_topics(
         async with conn.cursor() as cur:
             await cur.execute(
                 """
-                SELECT DISTINCT topic_id, topic_name, COUNT(*) as itemCount
-                FROM lesson_exercises
-                WHERE exercise_type = 'cloze' AND status = 'approved'
-                GROUP BY topic_id, topic_name
-                ORDER BY topic_name
+                SELECT DISTINCT le.topic_id, le.topic_name, COUNT(*) as itemCount
+                FROM lesson_exercises le
+                JOIN lessons l ON l.id = le.lesson_id
+                WHERE le.exercise_type = 'advanced_cloze' AND l.status = 'approved'
+                GROUP BY le.topic_id, le.topic_name
+                ORDER BY le.topic_name
                 """
             )
             rows = await cur.fetchall()
@@ -122,7 +123,7 @@ async def get_cloze_lessons(
     
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
-            where_clauses = ["le.exercise_type = 'cloze'", "le.status = 'approved'"]
+            where_clauses = ["le.exercise_type = 'advanced_cloze'", "l.status = 'approved'"]
             params = []
             
             if topicId:
@@ -190,35 +191,43 @@ async def get_cloze_items(
     
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
-            where_clauses = ["exercise_type = 'cloze'", "status = 'approved'"]
+            where_clauses = ["le.exercise_type = 'advanced_cloze'", "l.status = 'approved'"]
             params = []
             
             if topicId:
-                where_clauses.append("topic_id = %s")
+                where_clauses.append("le.topic_id = %s")
                 params.append(topicId)
             
             if lessonId:
-                where_clauses.append("lesson_id = %s")
+                where_clauses.append("le.lesson_id = %s")
                 params.append(lessonId)
             
             if difficulty:
-                where_clauses.append("difficulty = %s")
+                where_clauses.append("le.difficulty = %s")
                 params.append(difficulty)
             
             where_sql = " AND ".join(where_clauses)
             
             # Get total
-            await cur.execute(f"SELECT COUNT(*) FROM lesson_exercises WHERE {where_sql}", params)
+            await cur.execute(
+                f"""
+                SELECT COUNT(*) FROM lesson_exercises le
+                JOIN lessons l ON l.id = le.lesson_id
+                WHERE {where_sql}
+                """,
+                params
+            )
             total = (await cur.fetchone())[0]
             
             # Get paginated items
             offset = (page - 1) * limit
             await cur.execute(
                 f"""
-                SELECT id, lesson_id, exercise_data, topic_id, difficulty, hint
-                FROM lesson_exercises
+                SELECT le.id, le.lesson_id, le.exercise_data, le.topic_id, le.difficulty, le.hint
+                FROM lesson_exercises le
+                JOIN lessons l ON l.id = le.lesson_id
                 WHERE {where_sql}
-                ORDER BY created_at DESC
+                ORDER BY le.created_at DESC
                 LIMIT %s OFFSET %s
                 """,
                 params + [limit, offset]
@@ -261,9 +270,10 @@ async def start_cloze_session(
                 placeholders = ",".join(["%s"] * len(payload.selectedItemIds))
                 await cur.execute(
                     f"""
-                    SELECT id, lesson_id, exercise_data, topic_id, difficulty, hint
-                    FROM lesson_exercises
-                    WHERE id IN ({placeholders}) AND exercise_type = 'cloze' AND status = 'approved'
+                    SELECT le.id, le.lesson_id, le.exercise_data, le.topic_id, le.difficulty, le.hint
+                    FROM lesson_exercises le
+                    JOIN lessons l ON l.id = le.lesson_id
+                    WHERE le.id IN ({placeholders}) AND le.exercise_type = 'advanced_cloze' AND l.status = 'approved'
                     """,
                     payload.selectedItemIds
                 )
@@ -282,9 +292,10 @@ async def start_cloze_session(
                 placeholders = ",".join(["%s"] * len(mistake_ids))
                 await cur.execute(
                     f"""
-                    SELECT id, lesson_id, exercise_data, topic_id, difficulty, hint
-                    FROM lesson_exercises
-                    WHERE id IN ({placeholders}) AND exercise_type = 'cloze'
+                    SELECT le.id, le.lesson_id, le.exercise_data, le.topic_id, le.difficulty, le.hint
+                    FROM lesson_exercises le
+                    JOIN lessons l ON l.id = le.lesson_id
+                    WHERE le.id IN ({placeholders}) AND le.exercise_type = 'advanced_cloze' AND l.status = 'approved'
                     """,
                     mistake_ids
                 )
@@ -293,10 +304,11 @@ async def start_cloze_session(
             elif payload.mode == "lesson" and payload.lessonId:
                 await cur.execute(
                     """
-                    SELECT id, lesson_id, exercise_data, topic_id, difficulty, hint
-                    FROM lesson_exercises
-                    WHERE lesson_id = %s AND exercise_type = 'cloze' AND status = 'approved'
-                    ORDER BY created_at
+                    SELECT le.id, le.lesson_id, le.exercise_data, le.topic_id, le.difficulty, le.hint
+                    FROM lesson_exercises le
+                    JOIN lessons l ON l.id = le.lesson_id
+                    WHERE le.lesson_id = %s AND le.exercise_type = 'advanced_cloze' AND l.status = 'approved'
+                    ORDER BY le.created_at
                     LIMIT %s
                     """,
                     (payload.lessonId, payload.limit or 20)
@@ -305,15 +317,15 @@ async def start_cloze_session(
                 
             else:
                 # Topic mode (default)
-                where_clauses = ["exercise_type = 'cloze'", "status = 'approved'"]
+                where_clauses = ["le.exercise_type = 'advanced_cloze'", "l.status = 'approved'"]
                 params = []
                 
                 if payload.topicId:
-                    where_clauses.append("topic_id = %s")
+                    where_clauses.append("le.topic_id = %s")
                     params.append(payload.topicId)
                 
                 if payload.difficulty:
-                    where_clauses.append("difficulty = %s")
+                    where_clauses.append("le.difficulty = %s")
                     params.append(payload.difficulty)
                 
                 where_sql = " AND ".join(where_clauses)
@@ -321,8 +333,9 @@ async def start_cloze_session(
                 
                 await cur.execute(
                     f"""
-                    SELECT id, lesson_id, exercise_data, topic_id, difficulty, hint
-                    FROM lesson_exercises
+                    SELECT le.id, le.lesson_id, le.exercise_data, le.topic_id, le.difficulty, le.hint
+                    FROM lesson_exercises le
+                    JOIN lessons l ON l.id = le.lesson_id
                     WHERE {where_sql}
                     ORDER BY RAND()
                     LIMIT %s
