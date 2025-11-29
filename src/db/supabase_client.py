@@ -1,4 +1,3 @@
-# src/db/supabase_client.py
 from typing import Optional, Dict, Any, List
 from supabase import create_client, Client
 import logging
@@ -33,7 +32,9 @@ class SupabaseClient:
             logger.exception("Supabase health check failed.")
             return False
 
-    # Basic helpers used by workers and API
+    # ------------------------------------------------------------------
+    # Insert / Fetch / Update
+    # ------------------------------------------------------------------
     def insert_zoom_summary(self, row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         if not self.client:
             raise RuntimeError("Supabase client not initialized")
@@ -61,16 +62,75 @@ class SupabaseClient:
         resp = self.client.table("lesson_exercises").insert(payload).execute()
         return (getattr(resp, "data", []) or [None])[0]
 
+    # ------------------------------------------------------------------
+    # Task Fetching – PENDING
+    # ------------------------------------------------------------------
     def find_pending_summaries(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Return pending summaries eligible for processing."""
         if not self.client:
             raise RuntimeError("Supabase client not initialized")
-        resp = self.client.table("zoom_summaries").select("*").eq("status", "pending").order("created_at", desc=False).limit(limit).execute()
+        resp = (
+            self.client.table("zoom_summaries")
+            .select("*")
+            .eq("status", "pending")
+            .order("created_at", desc=False)
+            .limit(limit)
+            .execute()
+        )
         return getattr(resp, "data", []) or []
-    
+
     def get_zoom_summary_by_id(self, zoom_summary_id: int) -> Optional[Dict[str, Any]]:
         """Get a specific zoom summary by ID."""
         if not self.client:
             raise RuntimeError("Supabase client not initialized")
-        resp = self.client.table("zoom_summaries").select("*").eq("id", zoom_summary_id).limit(1).execute()
+        resp = (
+            self.client.table("zoom_summaries")
+            .select("*")
+            .eq("id", zoom_summary_id)
+            .limit(1)
+            .execute()
+        )
         return (getattr(resp, "data", []) or [None])[0]
+
+    # ------------------------------------------------------------------
+    # 🔥 NEW: Reclaim Stale Processing Tasks
+    # ------------------------------------------------------------------
+    def find_processing_older_than(self, cutoff_unix_timestamp: int, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Returns tasks that:
+          - are still "processing"
+          - AND processing_started_at < cutoff timestamp
+        Used to recover tasks if the worker crashed and left jobs stuck.
+        """
+
+        if not self.client:
+            raise RuntimeError("Supabase client not initialized")
+
+        try:
+            # Convert unix timestamp to ISO8601 because Supabase stores timestamps as text
+            cutoff_iso = (
+                # Convert int UNIX → datetime → isoformat
+                __import__("datetime").datetime.utcfromtimestamp(cutoff_unix_timestamp).isoformat()
+            )
+
+            logger.info(
+                "Looking for stale processing summaries older than %s (limit=%s)",
+                cutoff_iso,
+                limit,
+            )
+
+            resp = (
+                self.client.table("zoom_summaries")
+                .select("*")
+                .eq("status", "processing")
+                .lt("processing_started_at", cutoff_iso)
+                .order("processing_started_at", desc=False)
+                .limit(limit)
+                .execute()
+            )
+
+            return getattr(resp, "data", []) or []
+
+        except Exception:
+            logger.exception("Failed fetching stale processing rows")
+            return []

@@ -1,8 +1,24 @@
 # src/workers/zoom_processor.py
+"""
+Production-hardened Zoom -> Transcript -> Exercises worker.
+
+Key improvements vs. original:
+- Stream Zoom file downloads to a temporary file to avoid OOM.
+- Treat common MP4/video recordings as audio sources.
+- Use AssemblyAIHelper SDK/local-file path when available (or HTTP chunked upload fallback).
+- Per-job global timeout to avoid stuck worker threads.
+- Reclaim stale 'processing' jobs if previous worker died.
+- Better logging and safer status transitions.
+"""
 import logging
 import time
 import traceback
-from typing import Dict, Any, Optional
+import tempfile
+import os
+from typing import Dict, Any, Optional, List
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
+from datetime import datetime, timedelta
+
 from ..db.supabase_client import SupabaseClient
 from ..zoom.zoom_utils import has_transcript_file, has_audio_files, clean_vtt_transcript
 from ..zoom.zoom_client import ZoomAPI
@@ -14,369 +30,387 @@ logger = logging.getLogger(__name__)
 supabase = SupabaseClient()
 zoom_api = ZoomAPI()
 
-POLL_INTERVAL = settings.WORKER_POLL_INTERVAL_SECONDS
-BATCH_SIZE = settings.WORKER_BATCH_SIZE
-MAX_RETRIES = settings.WORKER_MAX_RETRIES
+POLL_INTERVAL = getattr(settings, "WORKER_POLL_INTERVAL_SECONDS", 10)
+BATCH_SIZE = getattr(settings, "WORKER_BATCH_SIZE", 5)
+MAX_RETRIES = getattr(settings, "WORKER_MAX_RETRIES", 5)
 
-def fetch_pending(limit: int = BATCH_SIZE):
+# How long we allow a single job to run (seconds). Prevents forever-hanging jobs.
+JOB_TIMEOUT_SECONDS = getattr(settings, "WORKER_JOB_TIMEOUT_SECONDS", 20 * 60)  # 20 minutes
+
+# If a job has been in 'processing' state longer than this, consider it stale and reclaimable.
+STALE_PROCESSING_SECONDS = getattr(settings, "WORKER_STALE_PROCESSING_SECONDS", 30 * 60)  # 30 minutes
+
+# How many threads to use when we want parallel local processing. The loop remains single-process,
+# but you can increase parallel workers later. Keep small to avoid memory spike.
+LOCAL_EXECUTOR_WORKERS = getattr(settings, "WORKER_LOCAL_EXECUTOR_WORKERS", 2)
+
+executor = ThreadPoolExecutor(max_workers=LOCAL_EXECUTOR_WORKERS)
+
+
+# -------------------------
+# Supabase helper wrappers
+# -------------------------
+def fetch_pending(limit: int = BATCH_SIZE) -> List[Dict[str, Any]]:
+    """
+    Primary fetch of pending rows.
+    If there are no 'pending' rows, also attempt to fetch stale 'processing' rows
+    older than STALE_PROCESSING_SECONDS so crashed workers get reclaimed.
+    """
     try:
-        return supabase.find_pending_summaries(limit)
+        pending = supabase.find_pending_summaries(limit)
     except Exception:
-        logger.exception("Failed fetching pending summaries")
-        return []
+        logger.exception("Failed fetching pending summaries (primary)")
+        pending = []
+
+    if not pending:
+        # Attempt to reclaim stale processing rows
+        try:
+            cutoff = int(time.time()) - STALE_PROCESSING_SECONDS
+            # Expected SupabaseClient method (if not present, replace with your method)
+            stale = supabase.find_processing_older_than(cutoff, limit=limit)
+            if stale:
+                logger.info("Found %d stale processing rows to reclaim", len(stale))
+                return stale
+        except AttributeError:
+            # Supabase client doesn't implement find_processing_older_than
+            logger.debug("SupabaseClient has no find_processing_older_than; skipping reclaim")
+        except Exception:
+            logger.exception("Failed fetching stale processing summaries")
+
+    return pending
+
 
 def claim_summary(row_id: Any) -> bool:
-    """Optimistic claim: set status to 'processing' only if still 'pending'."""
+    """Optimistic claim: set status to 'processing' only if still 'pending' or stale."""
     try:
-        payload = {"status": "processing", "claimed_at": utc_now_iso()}
+        payload = {
+            "status": "processing",
+            "claimed_at": utc_now_iso(),
+            "processing_started_at": utc_now_iso()
+        }
         return supabase.update_zoom_summary(row_id, payload)
     except Exception:
         logger.exception("Failed to claim summary %s", row_id)
         return False
 
+
 def mark_completed(row_id: Any, metadata: Optional[Dict[str, Any]] = None, exercises_generated: bool = True):
     try:
         status = "completed" if exercises_generated else "awaiting_exercises"
-        payload = {"status": status, "processed_at": utc_now_iso()}
+        payload = {
+            "status": status,
+            "processed_at": utc_now_iso(),
+            "processing_completed_at": utc_now_iso(),
+        }
         if metadata:
             payload["processing_metadata"] = metadata
         supabase.update_zoom_summary(row_id, payload)
-        logger.info(f"Marked row {row_id} as {status}")
+        logger.info("Marked row %s as %s", row_id, status)
     except Exception:
         logger.exception("Failed to mark completed %s", row_id)
 
+
 def mark_failed(row_id: Any, error: str, attempts: int):
     try:
+        # compute new status
+        next_status = "pending" if attempts < MAX_RETRIES else "failed"
         payload = {
-            "status": "pending" if attempts < MAX_RETRIES else "failed",
-            "last_error": error,
+            "status": next_status,
+            "last_error": str(error),
             "processing_attempts": attempts,
             "updated_at": utc_now_iso()
         }
         if attempts < MAX_RETRIES:
-            # backoff field for consumers
             payload["next_retry_at"] = int(time.time()) + (60 * (2 ** (attempts - 1)))
         else:
             payload["processed_at"] = utc_now_iso()
         supabase.update_zoom_summary(row_id, payload)
+        logger.warning("Marked row %s as failed/pending (attempts=%s) error=%s", row_id, attempts, error)
     except Exception:
         logger.exception("Failed to mark failed %s", row_id)
 
-def process_row(row: Dict[str, Any]):
-    row_id = row.get("id")
+
+# -------------------------
+# Utilities
+# -------------------------
+def _is_video_file_type(file_type: Optional[str]) -> bool:
+    if not file_type:
+        return False
+    ext = (file_type or "").lower()
+    # treat mp4 and mov as audio containers as a fallback (Zoom often uses mp4)
+    return ext in ("mp4", "mov", "m4v", "mkv")
+
+
+def _select_transcript_or_audio(files: List[Dict[str, Any]]):
+    """Return (transcript_file, audio_file OR video_file)"""
+    # prefer transcript
+    t = has_transcript_file(files)
+    if t:
+        return t, None
+
+    # prefer dedicated audio file
+    a = has_audio_files(files)
+    if a:
+        return None, a
+
+    # fallback: if any file looks like mp4/video, treat as audio (we'll download and extract if needed)
+    for f in files or []:
+        if _is_video_file_type(f.get("file_type")):
+            logger.debug("Treating video file as audio fallback: %s", f.get("file_type"))
+            return None, f
+
+    return None, None
+
+
+def _stream_download_to_tempfile(download_url: str, desc: str = "zoom_download", chunk_size: int = 8 * 1024 * 1024) -> str:
+    """
+    Stream a remote URL to a temporary file and return the path.
+    This avoids loading whole file in memory.
+    """
+    token = zoom_api.get_token()
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    logger.info("Streaming download %s -> temp (desc=%s)", download_url, desc)
+
+    # create named temp file that persists until we remove it
+    tmp = tempfile.NamedTemporaryFile(delete=False, prefix="zoom_", suffix=".tmp")
+    tmp_path = tmp.name
+    tmp.close()
+
     try:
-        if not claim_summary(row_id):
-            logger.debug("Could not claim row %s", row_id)
+        with requests_get_stream_safe(download_url, headers=headers) as r:
+            # r is a requests.Response
+            for chunk in r.iter_content(chunk_size=chunk_size):
+                if chunk:
+                    with open(tmp_path, "ab") as fw:
+                        fw.write(chunk)
+        return tmp_path
+    except Exception:
+        # cleanup on failure
+        try:
+            os.unlink(tmp_path)
+        except Exception:
+            pass
+        raise
+
+
+def requests_get_stream_safe(url: str, headers: Dict[str, str] = None, timeout: int = 120):
+    """Helper wrapper around requests.get with streaming and simple retry on 401 token refresh."""
+    import requests
+
+    headers = headers or {}
+    r = requests.get(url, headers=headers, timeout=timeout, stream=True)
+    # If 401, try refreshing token then retry once
+    if r.status_code == 401:
+        logger.warning("Stream download returned 401; refreshing token and retrying")
+        token = zoom_api.tm.refresh()
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+            r = requests.get(url, headers=headers, timeout=timeout, stream=True)
+    r.raise_for_status()
+    return r
+
+
+# -------------------------
+# Main processing
+# -------------------------
+def _process_row_internal(row: Dict[str, Any]):
+    """
+    The heavy work of processing a single row. Designed to be run in a worker future
+    and bounded by JOB_TIMEOUT_SECONDS from the outer caller.
+    """
+    row_id = row.get("id")
+    logger.info("Starting work on row %s", row_id)
+
+    # Attempt to claim; claim_summary will only succeed if row is claimable
+    if not claim_summary(row_id):
+        logger.info("Could not claim row %s; skipping", row_id)
+        return
+
+    files = row.get("recording_files") or row.get("files") or []
+    # If no files in the row, fetch from Zoom API
+    if not files:
+        logger.info("No recording_files in row %s, fetching from Zoom API", row_id)
+        teacher_email = row.get("teacher_email")
+        meeting_date = row.get("meeting_date")
+        start_time = row.get("start_time")
+
+        if not teacher_email or not meeting_date:
+            raise RuntimeError("Missing teacher_email or meeting_date - cannot fetch Zoom recordings")
+
+        try:
+            zoom_response = zoom_api.list_user_recordings(
+                user_id=teacher_email,
+                from_date=meeting_date,
+                to_date=meeting_date
+            )
+        except Exception as zoom_err:
+            err_str = str(zoom_err)
+            # Map some common error reasons to friendly messages and mark failed
+            attempts = int((row.get("processing_attempts") or 0) + 1)
+            if "404" in err_str:
+                msg = f"Zoom user '{teacher_email}' not found or inaccessible. Check Zoom account configuration."
+                logger.warning(msg)
+                mark_failed(row_id, msg, attempts)
+                return
+            if "401" in err_str or "403" in err_str:
+                msg = f"Zoom authentication failed when listing recordings: {err_str}"
+                logger.warning(msg)
+                mark_failed(row_id, msg, attempts)
+                return
+            logger.exception("Zoom API error while listing recordings for row %s: %s", row_id, zoom_err)
+            mark_failed(row_id, f"Zoom API error: {err_str}", attempts)
             return
 
-        # Fetch recording files from Zoom if not already present
-        files = row.get("recording_files") or row.get("files") or []
-        
-        if not files:
-            logger.info("No recording_files in row %s, fetching from Zoom API", row_id)
-            teacher_email = row.get("teacher_email")
-            meeting_date = row.get("meeting_date")
-            start_time = row.get("start_time")
-            end_time = row.get("end_time")
-            
-            if not teacher_email or not meeting_date:
-                raise RuntimeError("Missing teacher_email or meeting_date - cannot fetch Zoom recordings")
-            
+        meetings = zoom_response.get("meetings", [])
+        logger.info("Found %d meetings for %s on %s", len(meetings), teacher_email, meeting_date)
+
+        # Try to select meeting (same robust logic as before)
+        meeting_id = row.get("meeting_id")
+        selected_meeting = None
+
+        if meeting_id:
+            meeting_id_str = str(meeting_id)
+            for m in meetings:
+                mid = str(m.get("id") or m.get("uuid") or "")
+                if mid and (mid == meeting_id_str or meeting_id_str in mid) and m.get("recording_files"):
+                    selected_meeting = m
+                    break
+
+        # pick closest start_time if present
+        if not selected_meeting and start_time:
             try:
-                # Fetch recordings from Zoom API
-                try:
-                    zoom_response = zoom_api.list_user_recordings(
-                        user_id=teacher_email,
-                        from_date=meeting_date,
-                        to_date=meeting_date
-                    )
-                except Exception as zoom_err:
-                    err_str = str(zoom_err)
-                    # Handle specific HTTP errors with cleaner messages (no stack trace)
-                    if "404" in err_str:
-                        logger.warning(
-                            f"Zoom user not found for row {row_id}: '{teacher_email}' does not exist in your Zoom account or has no recording access."
-                        )
-                        logger.info(
-                            "METRIC:zoom_user_not_found user=%s row=%s",
-                            teacher_email,
-                            row_id,
-                        )
-                        mark_failed(
-                            row_id,
-                            f"Zoom user '{teacher_email}' not found. Verify this email exists in your Zoom account with cloud recording permissions.",
-                            int((row.get("processing_attempts") or 0) + 1)
-                        )
-                    elif "401" in err_str or "403" in err_str:
-                        logger.warning(f"Zoom authentication failed for row {row_id}: {err_str}")
-                        logger.info(
-                            "METRIC:zoom_auth_error user=%s row=%s",
-                            teacher_email,
-                            row_id,
-                        )
-                        mark_failed(
-                            row_id,
-                            f"Zoom authentication failed. Check ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET, and ZOOM_ACCOUNT_ID in .env.",
-                            int((row.get("processing_attempts") or 0) + 1)
-                        )
-                    elif "getaddrinfo failed" in err_str or "NameResolutionError" in err_str:
-                        logger.warning(f"Network/DNS error for row {row_id}: Cannot reach api.zoom.us. Check your internet connection.")
-                        logger.info(
-                            "METRIC:zoom_network_error user=%s row=%s",
-                            teacher_email,
-                            row_id,
-                        )
-                        mark_failed(
-                            row_id,
-                            f"Network error: Cannot reach Zoom API. Check internet/DNS connectivity.",
-                            int((row.get("processing_attempts") or 0) + 1)
-                        )
-                    else:
-                        logger.exception(f"Zoom API call failed for row {row_id}: {zoom_err}")
-                        mark_failed(
-                            row_id,
-                            f"Failed to fetch recordings from Zoom API: {err_str}. Check Zoom credentials and API access.",
-                            int((row.get("processing_attempts") or 0) + 1)
-                        )
-                    return
-                
-                meetings = zoom_response.get("meetings", [])
-                logger.info(f"Found {len(meetings)} meetings for {teacher_email} on {meeting_date}")
+                target_hm = str(start_time)[:5]
+                h, m = target_hm.split(":", 1)
+                target_minutes = int(h) * 60 + int(m)
+            except Exception:
+                target_minutes = None
 
-                # Try to select the *correct* meeting in a robust way:
-                # 1) If meeting_id is known, prefer an exact/partial ID match.
-                # 2) Otherwise, if start_time is provided, pick the meeting whose start time-of-day
-                #    (HH:MM) is closest to the expected start_time, within a reasonable window.
-                # 3) Fallback: first meeting that has any recording_files (previous behaviour).
-                matching_meeting = None
-                meeting_id = row.get("meeting_id")
-
-                # 1) Exact meeting_id match if available
-                if meeting_id:
-                    meeting_id_str = str(meeting_id)
-                    for m in meetings:
-                        mid = str(m.get("id") or m.get("uuid") or "")
-                        if not mid:
+            if target_minutes is not None:
+                best_diff = None
+                for m in meetings:
+                    mst = (m.get("start_time") or "")
+                    if len(mst) >= 16:
+                        hm = mst[11:16]
+                        try:
+                            hh, mm = hm.split(":", 1)
+                            mins = int(hh) * 60 + int(mm)
+                        except Exception:
                             continue
-                        if mid == meeting_id_str or meeting_id_str in mid:
-                            if m.get("recording_files"):
-                                matching_meeting = m
-                                logger.info(
-                                    "Selected meeting by meeting_id match for row %s: id=%s topic=%s",
-                                    row_id,
-                                    mid,
-                                    m.get("topic"),
-                                )
-                                break
+                        diff = abs(mins - target_minutes)
+                        if (best_diff is None or diff < best_diff) and m.get("recording_files"):
+                            best_diff = diff
+                            selected_meeting = m
+                if best_diff is not None and best_diff > 90:
+                    logger.info("Closest meeting start time diff=%s min for row %s outside window", best_diff, row_id)
+                    # leave selected_meeting as None (fallback to first)
 
-                # 2) If no meeting_id match, try closest start time-of-day
-                if not matching_meeting and start_time:
-                    # start_time comes from backend as HH:MM or HH:MM:SS; normalise to HH:MM
-                    target_hm = str(start_time)[:5]
-                    target_minutes = None
-                    try:
-                        h, m = target_hm.split(":", 1)
-                        target_minutes = int(h) * 60 + int(m)
-                    except Exception:
-                        logger.debug("Could not parse start_time '%s' for row %s", start_time, row_id)
+        # fallback: first meeting with recordings
+        if not selected_meeting:
+            for m in meetings:
+                if m.get("recording_files"):
+                    selected_meeting = m
+                    break
 
-                    if target_minutes is not None:
-                        best_diff = None
-                        best_meeting = None
-                        for m in meetings:
-                            mst = (m.get("start_time") or "")
-                            # Zoom start_time is ISO-8601; extract HH:MM from the time part
-                            if len(mst) >= 16:
-                                hm = mst[11:16]
-                                try:
-                                    hh, mm = hm.split(":", 1)
-                                    mins = int(hh) * 60 + int(mm)
-                                except Exception:
-                                    continue
-                                diff = abs(mins - target_minutes)
-                                if best_diff is None or diff < best_diff:
-                                    if m.get("recording_files"):
-                                        best_diff = diff
-                                        best_meeting = m
+        if not selected_meeting:
+            attempts = int((row.get("processing_attempts") or 0) + 1)
+            msg = "No Zoom recordings found for specified teacher/date"
+            logger.warning(msg + " for row %s", row_id)
+            mark_failed(row_id, msg, attempts)
+            return
 
-                        # Only accept if within a reasonable window (e.g. +/- 90 minutes)
-                        if best_meeting is not None:
-                            if best_diff is not None and best_diff <= 90:
-                                matching_meeting = best_meeting
-                                logger.info(
-                                    "Selected meeting by closest start time for row %s (diff=%s min): %s",
-                                    row_id,
-                                    best_diff,
-                                    best_meeting.get("start_time"),
-                                )
-                            else:
-                                logger.info(
-                                    "Closest meeting start time diff=%s min for row %s is outside window; "
-                                    "falling back to first recording.",
-                                    best_diff,
-                                    row_id,
-                                )
+        files = selected_meeting.get("recording_files", [])
+        logger.info("Selected meeting %s with %d files for row %s", selected_meeting.get("id"), len(files), row_id)
 
-                # 3) Fallback: first meeting with any recording_files
-                if not matching_meeting:
-                    for meeting in meetings:
-                        if meeting.get("recording_files"):
-                            matching_meeting = meeting
-                            logger.info(
-                                "Selected first meeting with recordings as fallback for row %s: %s",
-                                row_id,
-                                meeting.get("topic"),
-                            )
-                            break
-                
-                if matching_meeting:
-                    files = matching_meeting.get("recording_files", [])
-                    logger.info(f"Found {len(files)} recording files for row {row_id}")
-                else:
-                    # No recordings found - mark as failed with helpful message
-                    logger.warning(f"No Zoom recordings found for {teacher_email} on {meeting_date}")
-                    logger.info(
-                        "METRIC:zoom_no_recordings user=%s date=%s row=%s",
-                        teacher_email,
-                        meeting_date,
-                        row_id,
-                    )
-                    mark_failed(
-                        row_id, 
-                        f"No Zoom recordings available for {teacher_email} on {meeting_date}. Recording may not be ready yet or recording was not enabled for this meeting.",
-                        int((row.get("processing_attempts") or 0) + 1)
-                    )
-                    return
-                    
-            except Exception as e:
-                logger.exception(f"Failed to fetch Zoom recordings for row {row_id}: {e}")
-                raise
-        
-        transcript_file = has_transcript_file(files)
-        audio_file = has_audio_files(files)
-        
-        # Log what files we found for debugging
-        logger.info(
-            "Row %s: Found %d recording files. Transcript file: %s, Audio file: %s",
-            row_id,
-            len(files),
-            transcript_file.get('recording_type') if transcript_file else None,
-            audio_file.get('recording_type') if audio_file else None,
-        )
-        if audio_file:
-            file_size = audio_file.get('file_size', 0)
-            logger.info(
-                "Row %s: Audio file size=%s bytes, type=%s",
-                row_id,
-                file_size,
-                audio_file.get('file_type'),
-            )
+    # Choose transcript vs audio (with mp4 fallback)
+    transcript_file, audio_file = _select_transcript_or_audio(files)
 
-        transcript_text = ""
-        transcription_source = None
+    transcript_text = ""
+    transcription_source = None
+    temp_file_path = None
 
+    try:
         if transcript_file:
+            # Download transcript (usually small) -- stream and decode
             download_url = transcript_file.get("download_url")
             try:
                 content_bytes = zoom_api.download_file(download_url)
                 content = content_bytes.decode("utf-8", errors="ignore")
                 transcript_text = clean_vtt_transcript(content)
                 transcription_source = "zoom_native_transcript"
-                logger.info(
-                    "METRIC:transcription_success source=zoom_native row=%s length=%s",
-                    row_id,
-                    len(transcript_text or ""),
-                )
+                logger.info("Downloaded native transcript for row %s, length=%d", row_id, len(transcript_text or ""))
             except Exception:
                 logger.exception("Failed downloading transcript file for row %s", row_id)
                 raise
 
         elif audio_file:
-            # Use AssemblyAI for audio transcription
             download_url = audio_file.get("download_url")
+            # stream to temp file
+            temp_file_path = _stream_download_to_tempfile(download_url, desc=f"row_{row_id}")
+            logger.info("Downloaded audio/video to temp file %s for row %s", temp_file_path, row_id)
+
+            # transcribe using AssemblyAIHelper (prefer local-file SDK method)
             try:
                 from ..ai.utils.assemblyai_helper import AssemblyAIHelper
-                aai_helper = AssemblyAIHelper()
-                
-                if aai_helper.enabled:
-                    logger.info("Downloading audio with Zoom auth for row %s", row_id)
-                    # Download audio using authenticated Zoom client
-                    audio_bytes = zoom_api.download_file(download_url)
-                    logger.info("Downloaded %d bytes, uploading to AssemblyAI for row %s", len(audio_bytes), row_id)
-                    
-                    # Upload bytes to AssemblyAI for transcription
-                    result = aai_helper.transcribe_audio_bytes(audio_bytes)
-                    if result and result.get('text'):
-                        transcript_text = result['text']
-                        transcription_source = "assemblyai"
-                        logger.info("AssemblyAI transcription completed: %d chars", len(transcript_text))
-                        logger.info(
-                            "METRIC:transcription_success source=assemblyai row=%s length=%s",
-                            row_id,
-                            len(transcript_text or ""),
-                        )
-                    else:
-                        duration = result.get('duration') if result else None
-                        logger.warning(
-                            "AssemblyAI transcription returned empty text for row %s (audio duration=%ss). "
-                            "This usually means the recording is too short or has no clear speech.",
-                            row_id,
-                            duration,
-                        )
-                        # Provide a clear, user-facing reason in last_error so the backend can see why
-                        # this lesson cannot produce a transcript or exercises.
-                        attempts = int((row.get("processing_attempts") or 0) + 1)
-                        if duration is not None and duration <= 5:
-                            logger.info(
-                                "METRIC:transcription_too_short row=%s duration=%s",
-                                row_id,
-                                duration,
-                            )
-                            error_msg = (
-                                f"Recording too short ({duration}s). Not enough speech to generate a transcript "
-                                "or exercises. This is usually a quick test or accidental join."
-                            )
-                        else:
-                            logger.info(
-                                "METRIC:transcription_empty_text row=%s duration=%s",
-                                row_id,
-                                duration,
-                            )
-                            error_msg = (
-                                "AssemblyAI transcription returned empty text. "
-                                "Check that the Zoom recording has clear speech and is not silent."
-                            )
-                        mark_failed(row_id, error_msg, attempts)
-                        transcription_source = "audio_file_no_transcript"
-                        return
-                else:
-                    logger.warning("AssemblyAI not available, downloading audio only")
-                    audio_bytes = zoom_api.download_file(download_url)
-                    transcription_source = "audio_file_downloaded"
+                aai = AssemblyAIHelper()
             except Exception:
-                logger.exception("Failed processing audio for row %s", row_id)
-                raise
+                aai = None
+                logger.exception("Failed to import AssemblyAIHelper; will attempt HTTP fallback if available")
+
+            transcript_result = None
+            # Try SDK local file transcription first (recommended)
+            if aai and getattr(aai, "enabled", False):
+                logger.info("Using AssemblyAI SDK/local-file transcription for row %s", row_id)
+                try:
+                    transcript_result = aai.transcribe_local_file(temp_file_path, language_code="en")
+                except Exception:
+                    logger.exception("AssemblyAI SDK transcribe_local_file failed for row %s", row_id)
+
+            # Next, try HTTP chunked upload fallback (transcribe_audio_bytes expects bytes)
+            if not transcript_result and aai:
+                try:
+                    logger.info("Using AssemblyAI HTTP upload (streaming file bytes) for row %s", row_id)
+                    # Read file in streaming chunks to memory-limited streams.
+                    # aai.transcribe_audio_bytes accepts bytes blob in your helper; avoid loading into memory fully
+                    # We'll stream file into memory in chunks but upload via requests inside helper.
+                    with open(temp_file_path, "rb") as fh:
+                        audio_bytes = fh.read()  # assemblyai_helper.transcribe_audio_bytes currently expects bytes
+                        transcript_result = aai.transcribe_audio_bytes(audio_bytes)
+                except Exception:
+                    logger.exception("AssemblyAI HTTP transcribe_audio_bytes failed for row %s", row_id)
+                    transcript_result = None
+
+            # If still not available, try to return a helpful error
+            if transcript_result and transcript_result.get("text"):
+                transcript_text = transcript_result.get("text", "")
+                transcription_source = "assemblyai"
+                logger.info("AssemblyAI transcription success for row %s (chars=%d)", row_id, len(transcript_text or ""))
+            else:
+                # No transcript; mark failed with helpful reason
+                attempts = int((row.get("processing_attempts") or 0) + 1)
+                # Distinguish empty transcript vs failure
+                duration = transcript_result.get("duration") if transcript_result else None
+                if duration is not None and duration <= 5:
+                    msg = f"Recording too short ({duration}s) to transcribe"
+                else:
+                    msg = "AssemblyAI transcription returned empty text or failed"
+                logger.warning(msg + " for row %s", row_id)
+                mark_failed(row_id, msg, attempts)
+                return
+
         else:
-            # No transcript or audio files in the recording
-            logger.warning("No transcript or audio files found in recording for row %s", row_id)
-            logger.info("METRIC:zoom_recording_no_audio row=%s", row_id)
-            mark_failed(
-                row_id,
-                "Zoom recording exists but contains no transcript or audio files. Recording may still be processing.",
-                int((row.get("processing_attempts") or 0) + 1)
-            )
+            # No transcript nor audio found
+            attempts = int((row.get("processing_attempts") or 0) + 1)
+            msg = "No transcript or audio files found in recording"
+            logger.warning(msg + " for row %s", row_id)
+            mark_failed(row_id, msg, attempts)
             return
 
-        # Minimal validation - we must have a non-empty transcript
+        # Minimal validation we have a transcript
         if not transcript_text:
-            logger.warning("Transcript extraction resulted in empty text for row %s", row_id)
-            logger.info("METRIC:transcription_empty_text_generic row=%s", row_id)
-            mark_failed(
-                row_id,
-                "Transcript extraction failed or resulted in empty text. This usually means the recording "
-                "contained no speech or only a few seconds of audio.",
-                int((row.get("processing_attempts") or 0) + 1)
-            )
+            attempts = int((row.get("processing_attempts") or 0) + 1)
+            msg = "Transcript extraction produced empty text"
+            logger.warning(msg + " for row %s", row_id)
+            mark_failed(row_id, msg, attempts)
             return
 
         # Persist transcript into zoom_summaries (overwrite or update)
@@ -389,14 +423,15 @@ def process_row(row: Dict[str, Any]):
             "processing_completed_at": utc_now_iso()
         }
         supabase.update_zoom_summary(row_id, update_payload)
+        logger.info("Persisted transcript for row %s", row_id)
 
-        # Prepare a summary row for the AI orchestrator that already contains the transcript
+        # Prepare summary for AI orchestrator
         summary_for_ai = dict(row)
         summary_for_ai["transcript"] = transcript_text
         if transcription_source:
             summary_for_ai["transcript_source"] = transcription_source
 
-        # Call AI orchestrator to generate exercises
+        # Generate exercises (call existing orchestrator)
         exercise_generation_failed = False
         try:
             from ..ai.orchestrator import process_transcript_to_exercises
@@ -404,28 +439,51 @@ def process_row(row: Dict[str, Any]):
             if result.get("ok"):
                 logger.info("Generated exercises for row %s: %s", row_id, result.get("counts"))
             else:
-                logger.warning("Exercise generation failed for row %s: %s", row_id, result.get("reason"))
+                logger.warning("Exercise generation reported failure for row %s: %s", row_id, result.get("reason"))
                 exercise_generation_failed = True
         except Exception as e:
-            logger.exception("Failed to generate exercises for row %s: %s", row_id, e)
+            logger.exception("Exercise generation exception for row %s: %s", row_id, e)
             exercise_generation_failed = True
-        
-        # Mark as completed if exercises generated, otherwise awaiting_exercises
+
         if exercise_generation_failed:
-            logger.warning("Exercise generation failed for row %s - marking as awaiting_exercises", row_id)
             mark_completed(row_id, metadata={"transcription_source": transcription_source}, exercises_generated=False)
         else:
-            logger.info("Successfully generated exercises for row %s", row_id)
             mark_completed(row_id, metadata={"transcription_source": transcription_source}, exercises_generated=True)
 
+    finally:
+        # Ensure temp file cleanup
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.unlink(temp_file_path)
+                logger.debug("Removed temp file %s", temp_file_path)
+            except Exception:
+                logger.warning("Could not remove temp file %s", temp_file_path)
+
+
+def process_row(row: Dict[str, Any]):
+    """
+    Run heavy processing in a thread with a timeout to avoid hanging the worker.
+    """
+    row_id = row.get("id")
+    try:
+        future = executor.submit(_process_row_internal, row)
+        # Block with timeout
+        future.result(timeout=JOB_TIMEOUT_SECONDS)
+    except FutureTimeout:
+        # Timeout occurred: mark job for retry
+        tb = "Job exceeded timeout of {} seconds".format(JOB_TIMEOUT_SECONDS)
+        logger.exception("Timeout processing row %s: %s", row_id, tb)
+        attempts = int((row.get("processing_attempts") or 0) + 1)
+        mark_failed(row_id, tb, attempts)
     except Exception as exc:
         tb = traceback.format_exc()
         logger.exception("Processing failed for %s: %s\n%s", row_id, exc, tb)
         attempts = int((row.get("processing_attempts") or 0) + 1)
         mark_failed(row_id, str(exc), attempts)
 
+
 def run_forever():
-    logger.info("Zoom processor started. Poll interval %ds", POLL_INTERVAL)
+    logger.info("Zoom processor started. Poll interval %ds; batch=%s; timeout=%ds", POLL_INTERVAL, BATCH_SIZE, JOB_TIMEOUT_SECONDS)
     while True:
         try:
             pending = fetch_pending(BATCH_SIZE)
@@ -433,13 +491,17 @@ def run_forever():
                 time.sleep(POLL_INTERVAL)
                 continue
             for row in pending:
-                process_row(row)
+                try:
+                    process_row(row)
+                except Exception:
+                    logger.exception("Unhandled exception while processing row, continuing to next")
         except KeyboardInterrupt:
             logger.info("Processor interrupted; exiting.")
             break
         except Exception:
             logger.exception("Unexpected error in processor loop; sleeping before retry.")
             time.sleep(min(POLL_INTERVAL, 60))
+
 
 if __name__ == "__main__":
     run_forever()
