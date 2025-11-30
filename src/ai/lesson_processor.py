@@ -158,6 +158,31 @@ class LessonProcessor:
             grammar_challenge = generate_grammar_challenge(mistakes_struct, limit=3)
             advanced_cloze = generate_advanced_cloze(sentences_struct, limit=2)
 
+            # Optional: enhance distractors with Groq for production-quality options
+            exercises = {
+                "flashcards": flashcards,
+                "spelling": spelling,
+                "fill_blank": fill_blank,
+                "sentence_builder": sentence_builder,
+                "grammar_challenge": grammar_challenge,
+                "advanced_cloze": advanced_cloze,
+            }
+
+            try:
+                from .enhancers import enhance_pipeline_output
+                logger.info("Enhancing distractors with Groq for lesson %s...", lesson_number)
+                exercises = enhance_pipeline_output(exercises)
+            except Exception as e:
+                # If Groq is unavailable or enhancement fails, keep original exercises
+                logger.warning("Distractor enhancement skipped/failed: %s", e)
+
+            flashcards = exercises.get("flashcards", flashcards)
+            spelling = exercises.get("spelling", spelling)
+            fill_blank = exercises.get("fill_blank", fill_blank)
+            sentence_builder = exercises.get("sentence_builder", sentence_builder)
+            grammar_challenge = exercises.get("grammar_challenge", grammar_challenge)
+            advanced_cloze = exercises.get("advanced_cloze", advanced_cloze)
+
             qc_ok = True
             if self.quality_checker:
                 try:

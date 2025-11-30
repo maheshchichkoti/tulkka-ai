@@ -440,17 +440,31 @@ Max: {max_cloze}
 
 
 # ---------------------------
-# HIGH-LEVEL 2-CALL PIPELINE
+# HIGH-LEVEL 3-CALL PIPELINE
 # ---------------------------
 
-def run_two_call_pipeline(transcript: str, limits: Optional[Dict[str, int]] = None) -> Dict[str, Any]:
+def run_two_call_pipeline(
+    transcript: str,
+    limits: Optional[Dict[str, int]] = None,
+    enhance_distractors: bool = True
+) -> Dict[str, Any]:
     """
-    Production 2-call pipeline:
+    Production 3-call pipeline:
     
     Call 1: Extract vocabulary, mistakes, sentences (local extractors)
-    Call 2: Generate all games using Groq (single LLM call)
+    Call 2: Generate all games (rule-based generators)
+    Call 3: Enhance distractors with Groq (optional, single LLM call)
     
-    Returns normalized structures for all 6 game types.
+    The third call upgrades synthetic distractors (e.g., "goess", "eated")
+    to semantic, pedagogically-sound alternatives (e.g., "walks", "consumed").
+    
+    Args:
+        transcript: Lesson transcript text
+        limits: Optional dict with limits per exercise type
+        enhance_distractors: If True, call Groq to improve distractor quality
+    
+    Returns:
+        Dict with all 6 exercise types, counts, and metadata.
     """
     from ..extractors import VocabularyExtractor, MistakeExtractor, SentenceExtractor
     from ..generators import (
@@ -483,7 +497,7 @@ def run_two_call_pipeline(transcript: str, limits: Optional[Dict[str, int]] = No
     )
 
     # -----------------------------------------
-    # CALL 2: Generation (uses translator, optionally Groq)
+    # CALL 2: Generation (rule-based, no LLM)
     # -----------------------------------------
     flashcards = generate_flashcards(vocabulary, transcript, limit=flash_limit)
     spelling = generate_spelling_items(vocabulary, transcript, limit=spelling_limit)
@@ -492,24 +506,42 @@ def run_two_call_pipeline(transcript: str, limits: Optional[Dict[str, int]] = No
     grammar_challenge = generate_grammar_challenge(mistakes, limit=grammar_challenge_limit)
     advanced_cloze = generate_advanced_cloze(sentences, limit=advanced_cloze_limit)
 
-    return {
+    exercises = {
         "flashcards": flashcards,
         "spelling": spelling,
         "fill_blank": fill_blank,
         "sentence_builder": sentence_builder,
         "grammar_challenge": grammar_challenge,
         "advanced_cloze": advanced_cloze,
+    }
+
+    # -----------------------------------------
+    # CALL 3: Enhance distractors with Groq (optional)
+    # -----------------------------------------
+    if enhance_distractors:
+        try:
+            from ..enhancers import enhance_pipeline_output
+            logger.info("Enhancing distractors with Groq...")
+            exercises = enhance_pipeline_output(exercises)
+            logger.info("Distractor enhancement complete")
+        except Exception as e:
+            logger.warning("Distractor enhancement failed, using original: %s", e)
+            # Keep original exercises on failure
+
+    return {
+        **exercises,
         "counts": {
-            "flashcards": len(flashcards),
-            "spelling": len(spelling),
-            "fill_blank": len(fill_blank),
-            "sentence_builder": len(sentence_builder),
-            "grammar_challenge": len(grammar_challenge),
-            "advanced_cloze": len(advanced_cloze),
+            "flashcards": len(exercises.get("flashcards", [])),
+            "spelling": len(exercises.get("spelling", [])),
+            "fill_blank": len(exercises.get("fill_blank", [])),
+            "sentence_builder": len(exercises.get("sentence_builder", [])),
+            "grammar_challenge": len(exercises.get("grammar_challenge", [])),
+            "advanced_cloze": len(exercises.get("advanced_cloze", [])),
         },
         "metadata": {
             "vocabulary_count": len(vocabulary),
             "mistakes_count": len(mistakes),
             "sentences_count": len(sentences),
+            "distractors_enhanced": enhance_distractors,
         }
     }

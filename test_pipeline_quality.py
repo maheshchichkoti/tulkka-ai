@@ -132,10 +132,59 @@ def test_generation(extracted):
 
 
 # -------------------------------------------------------------------
-# PHASE 3 — LESSON PROCESSOR
+# PHASE 3 — DISTRACTOR ENHANCEMENT (GROQ)
+# -------------------------------------------------------------------
+def test_distractor_enhancement(generation):
+    section("PHASE 3: DISTRACTOR ENHANCEMENT (GROQ)")
+
+    try:
+        from src.ai.enhancers import enhance_pipeline_output
+        
+        logger.info("  Calling Groq to enhance distractors...")
+        enhanced = enhance_pipeline_output(generation)
+        
+        # Check if enhancement worked
+        enhanced_count = 0
+        original_synthetic = 0
+        
+        # Check fill_blank options
+        for i, item in enumerate(enhanced.get("fill_blank", [])):
+            options = item.get("options", [])
+            # Count synthetic-looking options (ending in 'ed', 'ing', 's' of the correct word)
+            correct = item.get("correct_answer", "")
+            synthetic = [o for o in options if o != correct and (
+                o.endswith("ed") and o[:-2] == correct or
+                o.endswith("ing") and o[:-3] == correct or
+                o.endswith("s") and o[:-1] == correct or
+                "ing" in o and correct in o
+            )]
+            if len(synthetic) < 2:  # Most options are now semantic
+                enhanced_count += 1
+            else:
+                original_synthetic += 1
+        
+        logger.info(f"  ✓ Enhanced {enhanced_count} fill_blank items with semantic distractors")
+        if original_synthetic > 0:
+            logger.info(f"  ⚠ {original_synthetic} items still have synthetic distractors (fallback)")
+        
+        # Show sample of enhanced options
+        if enhanced.get("fill_blank"):
+            sample = enhanced["fill_blank"][0]
+            logger.info(f"  Sample enhanced options: {sample.get('options', [])}")
+        
+        return enhanced
+        
+    except Exception as e:
+        logger.warning(f"  Distractor enhancement failed: {e}")
+        logger.info("  Using original generation (no enhancement)")
+        return generation
+
+
+# -------------------------------------------------------------------
+# PHASE 4 — LESSON PROCESSOR
 # -------------------------------------------------------------------
 def test_lesson_processor():
-    section("PHASE 3: LESSON PROCESSOR")
+    section("PHASE 4: LESSON PROCESSOR")
 
     from src.ai.lesson_processor import LessonProcessor
 
@@ -155,7 +204,7 @@ def test_lesson_processor():
 
 
 # -------------------------------------------------------------------
-# PHASE 4 — TRANSLATIONS
+# PHASE 5 — TRANSLATIONS
 # -------------------------------------------------------------------
 def test_translation_quality(gen):
     section("PHASE 4: TRANSLATION CHECK")
@@ -293,16 +342,31 @@ def write_generation_to_file(generation, filename: str = "tmp_pipeline_output.js
 def main():
     section("STARTING PIPELINE TEST")
 
+    # Phase 1: Extraction
     extraction = test_extraction()
+    
+    # Phase 2: Generation (rule-based)
     generation = test_generation(extraction)
-    write_generation_to_file(generation)
+    
+    # Phase 3: Distractor Enhancement (Groq LLM call)
+    enhanced_generation = test_distractor_enhancement(generation)
+    
+    # Write enhanced output to file
+    write_generation_to_file(enhanced_generation)
+    
+    # Phase 4: Lesson Processor test
     processor = test_lesson_processor()
 
-    translations = test_translation_quality(generation)
-    schema_ok = test_schema(generation)
-    final_score = score_pipeline(extraction, generation, translations, schema_ok)
+    # Phase 5: Translation quality
+    translations = test_translation_quality(enhanced_generation)
+    
+    # Phase 6: Schema validation
+    schema_ok = test_schema(enhanced_generation)
+    
+    # Final scoring
+    final_score = score_pipeline(extraction, enhanced_generation, translations, schema_ok)
 
-    log_final_summary(extraction, generation, translations, schema_ok, final_score)
+    log_final_summary(extraction, enhanced_generation, translations, schema_ok, final_score)
 
     return final_score
 
