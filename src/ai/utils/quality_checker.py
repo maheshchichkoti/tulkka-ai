@@ -1,146 +1,159 @@
 """
 Quality assurance for generated exercises
-Production-ready with comprehensive validation
+Fully compatible with NEW rule-based generators (2025)
 """
 
 from typing import List, Dict
-import re
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
 class QualityChecker:
-    """Validates exercise quality before output"""
-    
+    """Validates exercise quality before output (production-ready)"""
+
     def __init__(self):
         self.errors = []
         self.warnings = []
-    
-    def validate_exercises(self, fill_in_blank: List[Dict], 
-                          flashcards: List[Dict], 
-                          spelling: List[Dict]) -> bool:
-        """Run all quality checks"""
+
+    # -------------------------------------------------
+    # MAIN ENTRY
+    # -------------------------------------------------
+    def validate_exercises(self, fill_blank, flashcards, spelling) -> bool:
         self.errors = []
         self.warnings = []
-        
-        # Check each exercise type
-        self._check_fill_in_blank(fill_in_blank)
+
+        self._check_fill_blank(fill_blank)
         self._check_flashcards(flashcards)
         self._check_spelling(spelling)
-        
-        # Check total count
-        total = len(fill_in_blank) + len(flashcards) + len(spelling)
+
+        total = len(fill_blank) + len(flashcards) + len(spelling)
+
         if total < 8:
-            self.warnings.append(f"Total exercises ({total}) below minimum (8)")
-        elif total > 12:
-            self.warnings.append(f"Total exercises ({total}) above maximum (12)")
-        
-        # Report
+            self.warnings.append(f"Total exercises = {total}, below minimum (8)")
+        elif total > 40:
+            self.warnings.append(f"Total exercises = {total}, unusually high")
+
+        # Logging
         if self.errors:
             logger.warning(f"Quality check: {len(self.errors)} errors found")
-            for error in self.errors[:3]:
-                logger.warning(f"  - {error}")
-        
+            for e in self.errors[:5]:
+                logger.warning("  - " + e)
+
         if self.warnings:
             logger.info(f"Quality check: {len(self.warnings)} warnings")
-            for warning in self.warnings[:2]:
-                logger.info(f"  - {warning}")
-        
-        if not self.errors and not self.warnings:
-            logger.info("Quality check: All checks passed")
-        
+            for w in self.warnings[:5]:
+                logger.info("  - " + w)
+
         return len(self.errors) == 0
-    
-    def _check_fill_in_blank(self, exercises: List[Dict]):
-        """Validate fill-in-blank exercises"""
-        for i, ex in enumerate(exercises):
-            # Check blank exists
-            if '_____' not in ex.get('sentence', ''):
-                self.errors.append(f"Fill-blank {i+1}: No blank marker")
-            
-            # Check options exist
-            options = [
-                ex.get('option_a', ''),
-                ex.get('option_b', ''),
-                ex.get('option_c', ''),
-                ex.get('option_d', '')
-            ]
-            
-            # Check for empty options
-            empty_count = sum(1 for opt in options if not opt)
-            if empty_count > 0:
-                self.errors.append(f"Fill-blank {i+1}: {empty_count} empty options")
-            
-            # Check for duplicate options
-            non_empty_options = [opt for opt in options if opt]
-            if len(set(non_empty_options)) < len(non_empty_options):
-                self.warnings.append(f"Fill-blank {i+1}: Duplicate options detected")
-            
-            # Check answer validity
-            if ex.get('correct_answer') not in ['A', 'B', 'C', 'D']:
-                self.errors.append(f"Fill-blank {i+1}: Invalid answer format")
-            
-            # Verify correct word is in options
-            correct_word = ex.get('correct_word', '')
-            if correct_word and correct_word not in options:
-                self.errors.append(f"Fill-blank {i+1}: Correct word not in options")
-            
-            # Check sentence length
-            sentence = ex.get('sentence', '')
-            if len(sentence.split()) < 4:
-                self.warnings.append(f"Fill-blank {i+1}: Sentence too short")
-    
-    def _check_flashcards(self, flashcards: List[Dict]):
-        """Validate flashcards"""
-        seen = set()
-        for i, card in enumerate(flashcards):
-            word = card.get('word', '')
-            
-            # Check for duplicates
-            if word.lower() in seen:
-                self.warnings.append(f"Flashcard {i+1}: Duplicate word '{word}'")
-            seen.add(word.lower())
-            
-            # Check required fields
-            if not word:
-                self.errors.append(f"Flashcard {i+1}: Missing word")
-            
-            if not card.get('translation'):
-                self.errors.append(f"Flashcard {i+1}: Missing translation")
-            
-            if not card.get('example_sentence'):
-                self.warnings.append(f"Flashcard {i+1}: Missing example sentence")
-            
-            # Check if example contains the word
-            if word and card.get('example_sentence'):
-                if word.lower() not in card['example_sentence'].lower():
-                    self.warnings.append(f"Flashcard {i+1}: Example doesn't contain word")
-    
-    def _check_spelling(self, exercises: List[Dict]):
-        """Validate spelling exercises with duplicate check"""
-        seen = set()
-        for i, ex in enumerate(exercises):
-            word = ex.get('word', '')
-            
-            # Check for missing word
-            if not word:
-                self.errors.append(f"Spelling {i+1}: Missing word")
+
+    # -------------------------------------------------
+    # FILL-IN-THE-BLANK CHECKER
+    # -------------------------------------------------
+    def _check_fill_blank(self, items: List[Dict]):
+        for i, ex in enumerate(items):
+            ix = i + 1
+
+            # Sentence must contain a blank
+            sentence = ex.get("sentence", "")
+            if "_____" not in sentence:
+                self.errors.append(f"Fill-blank {ix}: Missing blank marker")
+
+            # Options must be a list of 4 strings
+            options = ex.get("options")
+            if not isinstance(options, list) or len(options) != 4:
+                self.errors.append(f"Fill-blank {ix}: Options must be a list of 4")
                 continue
-            
-            # Check for duplicates
-            if word.lower() in seen:
-                self.errors.append(f"Spelling {i+1}: Duplicate word '{word}'")
-            seen.add(word.lower())
-            
-            # Check for sample sentence
-            if not ex.get('sample_sentence'):
-                self.warnings.append(f"Spelling {i+1}: Missing sample sentence")
-            
-            # Check word length (spelling words should be challenging)
-            if len(word) < 4:
-                self.warnings.append(f"Spelling {i+1}: Word '{word}' too simple")
-            
-            # Check if sample contains the word
-            if word and ex.get('sample_sentence'):
-                if word.lower() not in ex['sample_sentence'].lower():
-                    self.warnings.append(f"Spelling {i+1}: Sample doesn't contain word")
+
+            # No empty options
+            empty = [opt for opt in options if not opt or not str(opt).strip()]
+            if empty:
+                self.errors.append(f"Fill-blank {ix}: Contains empty options")
+
+            # Duplicate options
+            if len(set(options)) < 4:
+                self.warnings.append(f"Fill-blank {ix}: Duplicate options")
+
+            # Correct answer must exist and be in options
+            answer = ex.get("correct_answer", "")
+            if not answer:
+                self.errors.append(f"Fill-blank {ix}: Missing correct_answer")
+            elif answer not in options:
+                self.errors.append(f"Fill-blank {ix}: correct_answer not in options")
+
+            # Sentence length warning
+            if len(sentence.split()) < 5:
+                self.warnings.append(f"Fill-blank {ix}: Sentence too short")
+
+    # -------------------------------------------------
+    # FLASHCARD CHECKER
+    # -------------------------------------------------
+    def _check_flashcards(self, cards: List[Dict]):
+        seen = set()
+        for i, card in enumerate(cards):
+            ix = i + 1
+            word = card.get("word", "")
+
+            if not word:
+                self.errors.append(f"Flashcard {ix}: Missing word")
+                continue
+
+            # Duplicate detection
+            lw = word.lower()
+            if lw in seen:
+                self.warnings.append(f"Flashcard {ix}: duplicate word '{word}'")
+            seen.add(lw)
+
+            # Must have translation
+            if not card.get("translation"):
+                self.errors.append(f"Flashcard {ix}: Missing translation")
+
+            # Example sentence check
+            example = card.get("example_sentence", "")
+            if not example:
+                self.warnings.append(f"Flashcard {ix}: Missing example_sentence")
+            else:
+                # Should contain word or a related form
+                if word.lower() not in example.lower():
+                    self.warnings.append(
+                        f"Flashcard {ix}: Example sentence does not contain word"
+                    )
+
+            # Difficulty field is required
+            if "difficulty" not in card:
+                self.warnings.append(f"Flashcard {ix}: Missing difficulty metadata")
+
+    # -------------------------------------------------
+    # SPELLING CHECKER
+    # -------------------------------------------------
+    def _check_spelling(self, items: List[Dict]):
+        seen = set()
+        for i, ex in enumerate(items):
+            ix = i + 1
+            word = ex.get("word", "")
+
+            if not word:
+                self.errors.append(f"Spelling {ix}: Missing word")
+                continue
+
+            # Duplicate detection
+            lw = word.lower()
+            if lw in seen:
+                self.errors.append(f"Spelling {ix}: Duplicate word '{word}'")
+            seen.add(lw)
+
+            # Must have translation
+            if not ex.get("translation"):
+                self.errors.append(f"Spelling {ix}: Missing translation")
+
+            # Must have hint field
+            if not ex.get("hint"):
+                self.warnings.append(f"Spelling {ix}: Missing hint field")
+
+            # Difficulty field required
+            if "difficulty" not in ex:
+                self.warnings.append(f"Spelling {ix}: Missing difficulty metadata")
+
+            # Too-short word (spelling should be challenge)
+            if len(word) < 3:
+                self.warnings.append(f"Spelling {ix}: Word too short to be meaningful")
