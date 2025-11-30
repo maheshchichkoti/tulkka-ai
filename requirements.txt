@@ -1,23 +1,41 @@
+# =============================================================================
+# Tulkka AI - Production Dependencies
+# =============================================================================
+
 # Core dependencies
-numpy==1.24.3
-pandas==2.0.3
-openpyxl==3.1.2
-groq==0.9.0
-python-dotenv==1.0.0
+numpy>=1.24.3,<2.0.0
+pandas>=2.0.3,<3.0.0
+openpyxl>=3.1.2,<4.0.0
+groq>=0.9.0,<1.0.0
+python-dotenv>=1.0.0,<2.0.0
 
-# API dependencies
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-pydantic==2.5.0
+# API framework
+fastapi>=0.104.1,<1.0.0
+uvicorn[standard]>=0.24.0,<1.0.0
+pydantic>=2.5.0,<3.0.0
 
-# Database dependencies
-supabase==2.10.0
-aiomysql>=0.2.0
-requests>=2.31.0
+# Database clients
+supabase>=2.10.0,<3.0.0
+aiomysql>=0.2.0,<1.0.0
+
+# HTTP client
+requests>=2.31.0,<3.0.0
+httpx>=0.25.0,<1.0.0
 
 # Transcription service
-assemblyai>=0.17.0
-python-jose[cryptography]>=3.3.0
-slowapi>=0.1.9
-passlib[bcrypt]>=1.7.4
-deep-translator>=1.11.0
+assemblyai>=0.17.0,<1.0.0
+
+# Security & Auth
+python-jose[cryptography]>=3.3.0,<4.0.0
+passlib[bcrypt]>=1.7.4,<2.0.0
+
+# Rate limiting
+slowapi>=0.1.9,<1.0.0
+
+# Translation
+deep-translator>=1.11.0,<2.0.0
+
+# Testing (dev only)
+pytest>=7.4.0,<8.0.0
+pytest-asyncio>=0.21.0,<1.0.0
+pytest-cov>=4.1.0,<5.0.0

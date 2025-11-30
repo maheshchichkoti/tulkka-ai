@@ -19,27 +19,35 @@ from typing import List, Optional
 logger = logging.getLogger(__name__)
 random.seed(1337)
 
-# Optional translator
+# Optional translator with proper error handling
 try:
     from deep_translator import GoogleTranslator
-    def _translator(target: str = "he"):
-        lang = "iw" if target.lower() == "he" else target
-        try:
-            return GoogleTranslator(source="en", target=lang)
-        except Exception:
-            logger.warning("Translator init failed, falling back to None")
-            return None
-except Exception:
-    GoogleTranslator = None
-    def _translator(target: str = "he"):
+    _TRANSLATOR_AVAILABLE = True
+except ImportError:
+    GoogleTranslator = None  # type: ignore
+    _TRANSLATOR_AVAILABLE = False
+
+
+def _translator(target: str = "he"):
+    """Create a translator instance for the target language."""
+    if not _TRANSLATOR_AVAILABLE:
+        return None
+    lang = "iw" if target.lower() == "he" else target
+    try:
+        return GoogleTranslator(source="en", target=lang)
+    except Exception as e:
+        logger.warning("Translator init failed: %s", e)
         return None
 
-def _tr(text: str, t) -> str:
-    if not text or not t:
+def _tr(text: str, translator) -> str:
+    """Translate text using the provided translator instance."""
+    if not text or not translator:
         return ""
     try:
-        return t.translate(text)
-    except Exception:
+        result = translator.translate(text)
+        return result if result else ""
+    except Exception as e:
+        logger.debug("Translation failed for '%s': %s", text[:20], e)
         return ""
 
 COMMON_WORDS = {

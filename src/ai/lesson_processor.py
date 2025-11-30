@@ -1,11 +1,13 @@
 # src/ai/lesson_processor.py
-from typing import Dict, List, Any
+"""Core lesson processing pipeline for generating exercises from transcripts."""
+
+from __future__ import annotations
+from typing import Dict, List, Any, Optional
 import logging
 import uuid
 import re
 
 from .extractors import VocabularyExtractor, MistakeExtractor, SentenceExtractor
-
 from .generators import (
     generate_flashcards,
     generate_spelling_items,
@@ -18,15 +20,31 @@ from .generators import (
 logger = logging.getLogger(__name__)
 
 class LessonProcessor:
+    """
+    Main processor for converting transcripts into learning exercises.
+    
+    Orchestrates extraction and generation phases to produce:
+    - Flashcards (vocabulary)
+    - Spelling items
+    - Fill-in-the-blank exercises
+    - Sentence builder exercises
+    - Grammar challenges
+    - Advanced cloze exercises
+    """
+    
     def __init__(self):
         self.vocab_extractor = VocabularyExtractor()
         self.mistake_extractor = MistakeExtractor()
         self.sentence_extractor = SentenceExtractor()
+        self.quality_checker: Optional[Any] = None
+        
         try:
             from .utils.quality_checker import QualityChecker
             self.quality_checker = QualityChecker()
-        except Exception:
-            self.quality_checker = None
+        except ImportError:
+            logger.debug("QualityChecker not available")
+        except Exception as e:
+            logger.warning("Failed to initialize QualityChecker: %s", e)
 
     def preprocess_data(
         self,
@@ -144,8 +162,9 @@ class LessonProcessor:
             if self.quality_checker:
                 try:
                     qc_ok = self.quality_checker.validate_exercises(fill_blank, flashcards, spelling)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("Quality check failed: %s", e)
+                    qc_ok = False
 
             total_exercises = len(flashcards) + len(spelling) + len(fill_blank) + len(sentence_builder) + len(grammar_challenge) + len(advanced_cloze)
 

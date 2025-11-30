@@ -19,17 +19,17 @@ supabase = SupabaseClient()
 lesson_processor = LessonProcessor()
 
 
-def _normalize(items):
+def _normalize(items: List[Any]) -> List[Dict[str, Any]]:
     """Convert dataclasses / objects into dicts safely."""
-    out = []
+    out: List[Dict[str, Any]] = []
     for item in items or []:
         if isinstance(item, dict):
             out.append(item)
         elif hasattr(item, "to_dict"):
             try:
                 out.append(item.to_dict())
-            except:
-                pass
+            except Exception as e:
+                logger.debug("Failed to convert item via to_dict: %s", e)
         elif hasattr(item, "__dict__"):
             out.append(dict(item.__dict__))
     return out

@@ -21,9 +21,9 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         "/docs",
         "/redoc",
         "/openapi.json",
-        "/api/v1/process",
-        "/api/v1/process-zoom-lesson",
-        "/api/v1/exercises",
+        "/v1/process",
+        "/v1/trigger-lesson-processing",
+        "/v1/exercises",
     }
 
     # All games endpoints are intentionally public (no JWT required in this service)

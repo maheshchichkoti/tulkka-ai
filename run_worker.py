@@ -10,11 +10,13 @@ Features:
 - Clean logging with your existing logging_config
 """
 
+import os
 import signal
 import sys
 import time
 import logging
 import traceback
+from typing import List
 
 from src.workers.zoom_processor import run_forever
 from src.logging_config import configure_logging

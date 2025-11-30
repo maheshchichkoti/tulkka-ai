@@ -1,13 +1,21 @@
 # src/security.py
-from typing import Optional, Dict, Any
-from jose import jwt, JWTError
-from .config import settings
+"""Security utilities for JWT authentication and authorization."""
+
+from __future__ import annotations
+from typing import Optional, Dict, Any, List
 import logging
+import hashlib
+import secrets
+
+from jose import jwt, JWTError
+
+from .config import settings
 
 logger = logging.getLogger(__name__)
 
+
 class JWTValidationError(Exception):
-    """JWT validation error"""
+    """Raised when JWT validation fails."""
     pass
 
 def decode_jwt(token: str) -> Optional[Dict[str, Any]]:
@@ -35,10 +43,35 @@ def verify_jwt(token: str) -> Dict[str, Any]:
         raise JWTValidationError(f"Invalid token: {e}")
 
 def require_scope(payload: Dict[str, Any], required_scope: str) -> bool:
-    """Check scope presence in token payload (simple)."""
+    """Check scope presence in token payload."""
     if not payload:
         return False
     scopes = payload.get("scope") or payload.get("scopes") or payload.get("permissions") or []
     if isinstance(scopes, str):
         scopes = scopes.split()
     return required_scope in scopes
+
+
+def require_any_scope(payload: Dict[str, Any], required_scopes: List[str]) -> bool:
+    """Check if any of the required scopes are present."""
+    if not payload or not required_scopes:
+        return False
+    scopes = payload.get("scope") or payload.get("scopes") or payload.get("permissions") or []
+    if isinstance(scopes, str):
+        scopes = scopes.split()
+    return any(scope in scopes for scope in required_scopes)
+
+
+def generate_api_key() -> str:
+    """Generate a secure random API key."""
+    return secrets.token_urlsafe(32)
+
+
+def hash_api_key(api_key: str) -> str:
+    """Hash an API key for storage."""
+    return hashlib.sha256(api_key.encode()).hexdigest()
+
+
+def verify_api_key(api_key: str, hashed_key: str) -> bool:
+    """Verify an API key against its hash."""
+    return secrets.compare_digest(hash_api_key(api_key), hashed_key)

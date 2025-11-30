@@ -1,73 +1,73 @@
 {
   "flashcards": [
     {
-      "id": "84d4fe83-56d1-445c-a097-996174019a34",
+      "id": "349c7c3b-7a6a-4599-89c0-6558b02d8629",
       "word": "open",
       "translation": "לִפְתוֹחַ",
-      "example_sentence": "Okay, can you open the camera, please?",
+      "example_sentence": "Can you open the window, please?",
       "difficulty": "beginner",
       "source": "content_word",
       "hint": "Word from lesson (content_word)"
     },
     {
-      "id": "5f3c6a3e-17e2-453a-bc70-02c93de81ecf",
+      "id": "8f1feed5-3321-48f7-8229-9b2abbfd2ef8",
       "word": "camera",
       "translation": "מַצלֵמָה",
-      "example_sentence": "Okay, can you open the camera, please?",
+      "example_sentence": "I need to turn on my camera for the video call.",
       "difficulty": "beginner",
       "source": "content_word",
       "hint": "Word from lesson (content_word)"
     },
     {
-      "id": "016afe79-2ac7-4307-8852-52610e9df314",
+      "id": "641f8be4-ab26-4e0d-ad0f-e4286d14e062",
       "word": "please",
-      "translation": "אָנָא",
-      "example_sentence": "Yes, look, please.",
+      "translation": "בבקשה",
+      "example_sentence": "Could you help me with this, please?",
       "difficulty": "beginner",
       "source": "content_word",
       "hint": "Word from lesson (content_word)"
     },
     {
-      "id": "c5c4ebf8-a671-475e-b0a1-088d1b59717f",
+      "id": "f8bc5620-f55f-450e-a5ac-af125ca23ba8",
       "word": "name",
-      "translation": "שֵׁם",
-      "example_sentence": "Your name is Khadija, right?",
+      "translation": "שֵׁם",
+      "example_sentence": "What is your name?",
       "difficulty": "beginner",
       "source": "content_word",
       "hint": "Word from lesson (content_word)"
     },
     {
-      "id": "0ae9fc18-9ea3-4c1b-ade9-db3e6ec72871",
+      "id": "95450c18-b495-4890-aa6e-0339b71b723c",
       "word": "fine",
       "translation": "בסדר",
-      "example_sentence": "Good, fine.",
+      "example_sentence": "How are you? I'm fine, thank you.",
       "difficulty": "beginner",
       "source": "content_word",
       "hint": "Word from lesson (content_word)"
     },
     {
-      "id": "0e9e237e-22ed-449e-b9e0-12e8121457d6",
+      "id": "bcae19ed-5387-4d4e-aa57-615fe04f75d5",
       "word": "great",
       "translation": "מצוין",
-      "example_sentence": "Great.",
+      "example_sentence": "That's a great idea!",
       "difficulty": "beginner",
       "source": "content_word",
       "hint": "Word from lesson (content_word)"
     },
     {
-      "id": "3c6d8a18-a06c-4c92-b0ed-4755875fd6f2",
+      "id": "26e557af-e00e-45fb-ba7a-6e9302552c99",
       "word": "amazing",
       "translation": "מדהים",
-      "example_sentence": "Amazing.",
+      "example_sentence": "The view from here is amazing.",
       "difficulty": "intermediate",
       "source": "content_word",
       "hint": "Word from lesson (content_word)"
     },
     {
-      "id": "2b607b9c-7be2-4403-849e-8b67acd262db",
+      "id": "fd6bfb80-4847-4041-9128-251b19a324e4",
       "word": "think",
       "translation": "לַחשׁוֹב",
-      "example_sentence": "What do you think?",
+      "example_sentence": "I think this is the right answer.",
       "difficulty": "intermediate",
       "source": "content_word",
       "hint": "Word from lesson (content_word)"
@@ -75,211 +75,211 @@
   ],
   "spelling": [
     {
-      "id": "abbe9fa7-4d68-4542-aaa1-653143bc62d9",
+      "id": "c41bcd3e-81fc-4649-b44b-a69992153804",
       "word": "open",
       "translation": "לִפְתוֹחַ",
       "hint": "לִפְתוֹחַ",
       "difficulty": "beginner",
       "source": "content_word",
-      "sample_sentence": "Okay, can you open the camera, please?"
+      "sample_sentence": "Can you open the window, please?"
     },
     {
-      "id": "725aecd4-7b5e-4942-b27c-2151c10929be",
+      "id": "82a5b094-c170-4400-a231-c79d7d210941",
       "word": "camera",
       "translation": "מַצלֵמָה",
       "hint": "מַצלֵמָה",
       "difficulty": "beginner",
       "source": "content_word",
-      "sample_sentence": "Okay, can you open the camera, please?"
+      "sample_sentence": "I need to turn on my camera for the video call."
     },
     {
-      "id": "9b72e930-9fb5-42a3-be70-9fb50a08dc87",
+      "id": "ae7f49a4-fc52-42c7-9e1d-f8295cb119de",
       "word": "please",
-      "translation": "אָנָא",
-      "hint": "אָנָא",
+      "translation": "בבקשה",
+      "hint": "בבקשה",
       "difficulty": "beginner",
       "source": "content_word",
-      "sample_sentence": "Yes, look, please."
+      "sample_sentence": "Could you help me with this, please?"
     },
     {
-      "id": "cd8e8530-8570-4a63-bd96-7840f8550771",
+      "id": "fcd19a15-00ab-4c49-9310-b296599d75ad",
       "word": "name",
-      "translation": "שֵׁם",
-      "hint": "שֵׁם",
+      "translation": "שֵׁם",
+      "hint": "שֵׁם",
       "difficulty": "beginner",
       "source": "content_word",
-      "sample_sentence": "Your name is Khadija, right?"
+      "sample_sentence": "What is your name?"
     },
     {
-      "id": "d598bdc5-efbd-404b-8f80-7cd8990c99fc",
+      "id": "6c7893a9-14bb-4bae-acfa-59e831a4ad1a",
       "word": "fine",
       "translation": "בסדר",
       "hint": "בסדר",
       "difficulty": "beginner",
       "source": "content_word",
-      "sample_sentence": "Good, fine."
+      "sample_sentence": "How are you? I'm fine, thank you."
     },
     {
-      "id": "83f509fe-1932-4aab-9b2f-ee9efae5d3e7",
+      "id": "bc5ea5db-f15e-4355-ad78-b133e9e7299c",
       "word": "great",
       "translation": "מצוין",
       "hint": "מצוין",
       "difficulty": "beginner",
       "source": "content_word",
-      "sample_sentence": "Great."
+      "sample_sentence": "That's a great idea!"
     },
     {
-      "id": "fe0624a7-1889-40d2-aee4-eb2acc7722e7",
+      "id": "1efaacc8-6669-4bf9-a2ba-778e048bc6a6",
       "word": "amazing",
       "translation": "מדהים",
       "hint": "מדהים",
       "difficulty": "intermediate",
       "source": "content_word",
-      "sample_sentence": "Amazing."
+      "sample_sentence": "The view from here is amazing."
     },
     {
-      "id": "10fe5d16-6b29-4602-8c79-b102baa63718",
+      "id": "07d3155d-0102-42c6-8a08-30e751f68c94",
       "word": "think",
       "translation": "לַחשׁוֹב",
       "hint": "לַחשׁוֹב",
       "difficulty": "intermediate",
       "source": "content_word",
-      "sample_sentence": "What do you think?"
+      "sample_sentence": "I think this is the right answer."
     }
   ],
   "fill_blank": [
     {
-      "id": "67f467f1-d219-4f1f-a53b-a95f3f457432",
-      "sentence": "basmala emam: Okay, can you open the _____, please?",
+      "id": "a1582c85-90de-4bb4-8661-03655a1a0e28",
+      "sentence": "I want to _____ learning a new language.",
       "options": [
-        "cameraing",
-        "camera",
-        "cameras",
-        "cameraed"
+        "starting",
+        "start",
+        "starts",
+        "started"
       ],
-      "correct_answer": "camera",
-      "difficulty": "beginner",
-      "source_mistake": "auto_sentence",
-      "explanation": "Correct: camera",
-      "hint": "Choose the word that best fits the sentence.",
-      "concept": "vocab_cloze"
+      "correct_answer": "start",
+      "difficulty": "intermediate",
+      "source_mistake": "vocabulary_template",
+      "explanation": "'Start' means to commence an activity.",
+      "hint": "Choose the word that best completes the sentence.",
+      "concept": "vocabulary"
     },
     {
-      "id": "21bf852c-4d2d-430a-a806-139bae680478",
-      "sentence": "basmala emam: Your _____ is Khadija, right?",
+      "id": "cae56666-c721-4a3a-bd6a-d02d7ac6c1bc",
+      "sentence": "Please write your _____ on the paper.",
       "options": [
-        "name",
-        "names",
-        "naming",
-        "named"
-      ],
-      "correct_answer": "name",
-      "difficulty": "beginner",
-      "source_mistake": "auto_sentence",
-      "explanation": "Correct: name",
-      "hint": "Choose the word that best fits the sentence.",
-      "concept": "vocab_cloze"
-    },
-    {
-      "id": "ae8bef2b-c373-430e-b91a-5a0358b66db4",
-      "sentence": "basmala emam: Okay, my _____ is Pass now, okay?",
-      "options": [
-        "names",
         "name",
         "naming",
-        "named"
-      ],
-      "correct_answer": "name",
-      "difficulty": "beginner",
-      "source_mistake": "auto_sentence",
-      "explanation": "Correct: name",
-      "hint": "Choose the word that best fits the sentence.",
-      "concept": "vocab_cloze"
-    },
-    {
-      "id": "cbea76f1-c0ba-46f2-be2a-cd4def7b1a9b",
-      "sentence": "basmala emam: Okay, I think you already _____ the letters, right?",
-      "options": [
-        "knows",
-        "knowing",
-        "know",
-        "knowed"
-      ],
-      "correct_answer": "know",
-      "difficulty": "beginner",
-      "source_mistake": "auto_sentence",
-      "explanation": "Correct: know",
-      "hint": "Choose the word that best fits the sentence.",
-      "concept": "vocab_cloze"
-    },
-    {
-      "id": "2e250e55-731e-4663-ae97-a219bff96182",
-      "sentence": "So you, want to _____ more about mourning?",
-      "options": [
-        "knowed",
-        "knowing",
-        "know",
-        "knows"
-      ],
-      "correct_answer": "know",
-      "difficulty": "beginner",
-      "source_mistake": "auto_sentence",
-      "explanation": "Correct: know",
-      "hint": "Choose the word that best fits the sentence.",
-      "concept": "vocab_cloze"
-    },
-    {
-      "id": "e6f862e0-c586-400c-99cf-5b4373456e83",
-      "sentence": "basmala emam: Okay, the _____ of the book?",
-      "options": [
-        "name",
         "named",
-        "naming",
         "names"
       ],
       "correct_answer": "name",
       "difficulty": "beginner",
-      "source_mistake": "auto_sentence",
-      "explanation": "Correct: name",
-      "hint": "Choose the word that best fits the sentence.",
-      "concept": "vocab_cloze"
+      "source_mistake": "vocabulary_template",
+      "explanation": "Your 'name' identifies who you are.",
+      "hint": "Choose the word that best completes the sentence.",
+      "concept": "vocabulary"
     },
     {
-      "id": "1c95f5f1-b1bc-4be4-9fcb-f1cdf6c9c5a6",
-      "sentence": "basmala emam: So, in the _____, we say good morning, right?",
-      "options": [
-        "morninged",
-        "mornings",
-        "morninging",
-        "morning"
-      ],
-      "correct_answer": "morning",
-      "difficulty": "intermediate",
-      "source_mistake": "auto_sentence",
-      "explanation": "Correct: morning",
-      "hint": "Choose the word that best fits the sentence.",
-      "concept": "vocab_cloze"
-    },
-    {
-      "id": "cc35ce9b-e51d-4c81-a62d-9df4d4766a88",
-      "sentence": "basmala emam: So, number one, the kitchen number one, it's _____, right?",
+      "id": "122173c8-84d6-4b70-b8fd-efd011dd1658",
+      "sentence": "Good _____! How did you sleep?",
       "options": [
         "morninging",
-        "morninged",
         "morning",
+        "morninged",
         "mornings"
       ],
       "correct_answer": "morning",
       "difficulty": "intermediate",
-      "source_mistake": "auto_sentence",
-      "explanation": "Correct: morning",
-      "hint": "Choose the word that best fits the sentence.",
-      "concept": "vocab_cloze"
+      "source_mistake": "vocabulary_template",
+      "explanation": "We greet people with 'Good morning'.",
+      "hint": "Choose the word that best completes the sentence.",
+      "concept": "vocabulary"
+    },
+    {
+      "id": "5235d5ac-2adc-49c8-b1c3-b856e2867afa",
+      "sentence": "Let me _____ about it for a moment.",
+      "options": [
+        "thinks",
+        "thinking",
+        "think",
+        "thinked"
+      ],
+      "correct_answer": "think",
+      "difficulty": "intermediate",
+      "source_mistake": "vocabulary_template",
+      "explanation": "'Think' means to consider something.",
+      "hint": "Choose the word that best completes the sentence.",
+      "concept": "vocabulary"
+    },
+    {
+      "id": "66bc8f63-2a5f-4847-ab87-616327c1cfe1",
+      "sentence": "Please mail this _____ for me.",
+      "options": [
+        "lettered",
+        "lettering",
+        "letter",
+        "letters"
+      ],
+      "correct_answer": "letter",
+      "difficulty": "intermediate",
+      "source_mistake": "vocabulary_template",
+      "explanation": "A 'letter' is sent through the post.",
+      "hint": "Choose the word that best completes the sentence.",
+      "concept": "vocabulary"
+    },
+    {
+      "id": "75eb1acc-1688-4a49-b1cc-3ba2efd291d2",
+      "sentence": "She has _____ eaten breakfast.",
+      "options": [
+        "already",
+        "alreadying",
+        "alreadied",
+        "alreadies"
+      ],
+      "correct_answer": "already",
+      "difficulty": "intermediate",
+      "source_mistake": "vocabulary_template",
+      "explanation": "'Already' indicates completion before a certain time.",
+      "hint": "Choose the word that best completes the sentence.",
+      "concept": "vocabulary"
+    },
+    {
+      "id": "86b028dc-71d9-47c0-858d-9bfc2bbdb2e5",
+      "sentence": "The children _____ lunch at school.",
+      "options": [
+        "eated",
+        "eats",
+        "eating",
+        "eat"
+      ],
+      "correct_answer": "eat",
+      "difficulty": "beginner",
+      "source_mistake": "vocabulary_template",
+      "explanation": "'Eat' means to take in food.",
+      "hint": "Choose the word that best completes the sentence.",
+      "concept": "vocabulary"
+    },
+    {
+      "id": "8f41b37c-572e-410a-b1f6-803365467972",
+      "sentence": "We had a _____ time at the party.",
+      "options": [
+        "greated",
+        "greats",
+        "great",
+        "greating"
+      ],
+      "correct_answer": "great",
+      "difficulty": "beginner",
+      "source_mistake": "vocabulary_template",
+      "explanation": "'Great' describes something wonderful.",
+      "hint": "Choose the word that best completes the sentence.",
+      "concept": "vocabulary"
     }
   ],
   "sentence_builder": [
     {
-      "id": "62557b98-d08d-4fc6-88fb-c265b92c2437",
+      "id": "532d3836-1fd9-4b21-bf3f-d7aad7c1ec1f",
       "english": "Can you open the camera, please?",
       "tokens": [
         "Can",
@@ -308,7 +308,7 @@
       "difficulty": "intermediate"
     },
     {
-      "id": "c65370e0-8ce5-4734-8643-2a190e94e82a",
+      "id": "4a1fa14c-2e11-4383-947c-6f78fa43e769",
       "english": "I think you already know the letters.",
       "tokens": [
         "I",
@@ -337,7 +337,7 @@
       "difficulty": "intermediate"
     },
     {
-      "id": "6a0a1619-4608-4ab1-8aaa-d548d6857703",
+      "id": "05aaec2a-a9ac-48f3-b4c4-ce20edd9a907",
       "english": "What did you do in the morning?",
       "tokens": [
         "What",
@@ -368,13 +368,13 @@
   ],
   "grammar_challenge": [
     {
-      "id": "47379cee-5c61-4c12-9ffb-6489db468327",
+      "id": "89ba22f2-5c4c-4355-a87a-5e890487d31b",
       "prompt": "She ____ to school every day.",
       "options": [
-        "goes",
-        "goe",
+        "goess",
         "goesing",
-        "goess"
+        "goe",
+        "goes"
       ],
       "correct_answer": "goes",
       "explanation": "Correct form is 'goes'.",
@@ -384,13 +384,13 @@
       "source_mistake": "auto_template"
     },
     {
-      "id": "f8b8bf0c-25a8-4afd-9d74-0cb7c27ff353",
+      "id": "d69565bf-a034-4787-a7a4-577dc2473348",
       "prompt": "They ____ the book every week.",
       "options": [
         "reading",
         "reads",
-        "read",
-        "readed"
+        "readed",
+        "read"
       ],
       "correct_answer": "read",
       "explanation": "Correct form is 'read'.",
@@ -400,13 +400,13 @@
       "source_mistake": "auto_template"
     },
     {
-      "id": "6e6d8166-f783-41af-af52-654694070f1e",
+      "id": "44f8c036-116c-472d-ab6b-6f92c02ed29e",
       "prompt": "I ____ an apple for breakfast.",
       "options": [
         "eated",
-        "eating",
         "eats",
-        "eat"
+        "eat",
+        "eating"
       ],
       "correct_answer": "eat",
       "explanation": "Correct form is 'eat'.",
@@ -418,14 +418,14 @@
   ],
   "advanced_cloze": [
     {
-      "id": "ac22f7f3-4a35-4829-b2a0-1eba2b4896ab",
+      "id": "a3c4db68-321c-4c11-8645-f85632eb35d9",
       "sentence": "can you _____ the _____, please.",
       "blank1": {
         "options": [
-          "opening",
-          "opens",
+          "open",
           "opened",
-          "open"
+          "opens",
+          "opening"
         ],
         "correct": "open",
         "hint": "Consider the grammar and meaning of blank 1."
@@ -433,9 +433,9 @@
       "blank2": {
         "options": [
           "cameras",
+          "cameraing",
           "cameraed",
-          "camera",
-          "cameraing"
+          "camera"
         ],
         "correct": "camera",
         "hint": "Consider the grammar and meaning of blank 2."
@@ -445,14 +445,14 @@
       "concept": "advanced_cloze"
     },
     {
-      "id": "57402ac1-d50f-4151-bddf-926f4647c099",
+      "id": "a2e3a188-498a-42cc-b118-b652cf38e2b2",
       "sentence": "I _____ you already _____ the letters.",
       "blank1": {
         "options": [
-          "thinks",
           "thinking",
           "think",
-          "thinked"
+          "thinked",
+          "thinks"
         ],
         "correct": "think",
         "hint": "Consider the grammar and meaning of blank 1."
@@ -461,8 +461,8 @@
         "options": [
           "knows",
           "knowing",
-          "know",
-          "knowed"
+          "knowed",
+          "know"
         ],
         "correct": "know",
         "hint": "Consider the grammar and meaning of blank 2."

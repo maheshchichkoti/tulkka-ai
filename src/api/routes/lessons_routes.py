@@ -1,24 +1,46 @@
-"""Lesson processing API routes"""
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from pydantic import BaseModel, Field
-from typing import Optional, List
-from ...ai.lesson_processor import LessonProcessor
-from ...db.supabase_client import SupabaseClient
-from ...time_utils import utc_now_iso
+"""Lesson processing API routes.
+
+Provides endpoints for:
+- Processing transcripts into exercises
+- Triggering async lesson processing from Zoom recordings
+- Checking processing status
+- Retrieving generated exercises
+"""
+
+from __future__ import annotations
 import logging
+from typing import Optional, Dict, Any, List
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field, field_validator
+
+from ...ai.lesson_processor import LessonProcessor
+from ...db.supabase_client import SupabaseClient, SupabaseClientError
+from ...time_utils import utc_now_iso
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1", tags=["Lesson Processing"])
 
+# Initialize services (lazy initialization would be better for testing)
 lesson_processor = LessonProcessor()
 supabase = SupabaseClient()
 
 class TranscriptInput(BaseModel):
-    transcript: str = Field(..., min_length=10)
-    lesson_number: int = Field(1, ge=1)
-    user_id: Optional[str] = None
-    teacher_id: Optional[str] = None
-    class_id: Optional[str] = None
+    """Input model for transcript processing."""
+    transcript: str = Field(..., min_length=10, max_length=500000, description="Transcript text")
+    lesson_number: int = Field(1, ge=1, le=1000, description="Lesson number")
+    user_id: Optional[str] = Field(None, max_length=100)
+    teacher_id: Optional[str] = Field(None, max_length=100)
+    class_id: Optional[str] = Field(None, max_length=100)
+    
+    @field_validator('transcript')
+    @classmethod
+    def validate_transcript(cls, v: str) -> str:
+        """Ensure transcript has meaningful content."""
+        stripped = v.strip()
+        if len(stripped) < 10:
+            raise ValueError('Transcript must contain at least 10 characters')
+        return stripped
 
 class ZoomLessonInput(BaseModel):
     """Input for triggering lesson processing from backend"""
@@ -34,15 +56,21 @@ class ZoomLessonInput(BaseModel):
     meetingTopic: Optional[str] = Field(None, description="Meeting topic")
 
 @router.post("/process")
-def process_transcript(payload: TranscriptInput):
-    """Process a single transcript and generate exercises"""
+def process_transcript(payload: TranscriptInput) -> Dict[str, Any]:
+    """
+    Process a single transcript and generate exercises.
+    
+    Returns generated exercises including flashcards, spelling, fill-blank,
+    sentence builder, grammar challenge, and advanced cloze exercises.
+    """
     try:
         result = lesson_processor.process_lesson(
             payload.transcript,
             payload.lesson_number
         )
         
-        # Store in Supabase if IDs provided
+        # Store in Supabase if all IDs provided
+        stored = False
         if payload.user_id and payload.teacher_id and payload.class_id:
             try:
                 exercises_payload = {
@@ -55,18 +83,26 @@ def process_transcript(payload: TranscriptInput):
                     'status': 'pending_approval'
                 }
                 supabase.insert_lesson_exercises(exercises_payload)
+                stored = True
+            except SupabaseClientError as e:
+                logger.warning("Failed to store exercises in Supabase: %s", e)
             except Exception as e:
-                logger.warning(f"Failed to store exercises: {e}")
+                logger.warning("Unexpected error storing exercises: %s", e)
         
         return {
             'success': True,
             'lesson_number': payload.lesson_number,
             'exercises': result,
-            'metadata': result.get('metadata', {})
+            'metadata': result.get('metadata', {}),
+            'stored': stored
         }
+        
+    except ValueError as e:
+        logger.warning("Validation error in process_transcript: %s", e)
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
-        logger.exception(f"Error processing transcript: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error processing transcript")
+        raise HTTPException(status_code=500, detail="Failed to process transcript")
 
 @router.post("/trigger-lesson-processing")
 def trigger_lesson_processing(payload: ZoomLessonInput):
