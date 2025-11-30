@@ -39,12 +39,23 @@ class SupabaseClient:
             return
         
         try:
-            # Configure client with reasonable timeouts
-            options = ClientOptions(
-                postgrest_client_timeout=30,
-                storage_client_timeout=30,
-            )
-            self.client = create_client(self.url, self.key, options=options)
+            # Configure client with reasonable timeouts when supported.
+            # Some supabase-py versions expect different ClientOptions fields
+            # (e.g. 'storage'), so we fall back to default options if this fails.
+            try:
+                options = ClientOptions(
+                    postgrest_client_timeout=30,
+                    storage_client_timeout=30,
+                )
+                self.client = create_client(self.url, self.key, options=options)
+            except Exception as options_exc:
+                logger.warning(
+                    "Supabase ClientOptions not supported or incompatible (%s); "
+                    "falling back to default client options.",
+                    options_exc,
+                )
+                self.client = create_client(self.url, self.key)
+
             self._initialized = True
             logger.info("Supabase client initialized successfully.")
         except Exception as e:
