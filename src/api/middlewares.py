@@ -38,6 +38,8 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
     )
 
     def _is_public(self, path: str) -> bool:
+        if path.startswith("/v1/"):
+            return True
         if path in self.PUBLIC_PATHS:
             return True
         for prefix in self.GAMES_PUBLIC_PREFIXES:

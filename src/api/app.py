@@ -25,7 +25,6 @@ from ..games.routes.grammar_routes import router as grammar_router
 from ..games.routes.sentence_routes import router as sentence_router
 from ..logging_config import configure_logging
 from ..config import settings
-
 # Rate limiter instance
 limiter = Limiter(key_func=get_remote_address)
 

@@ -54,8 +54,6 @@ class AsyncMySQLPool:
 
                 # IMPORTANT:
                 connect_timeout=10,
-                read_timeout=30,
-                write_timeout=30,
 
                 # Recycle idle connections before MySQL kills them
                 pool_recycle=180,     # always < wait_timeout (default 300)
