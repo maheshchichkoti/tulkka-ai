@@ -17,7 +17,6 @@ import tempfile
 import os
 from typing import Dict, Any, Optional, List
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
-from datetime import datetime, timedelta
 
 from ..db.supabase_client import SupabaseClient
 from ..zoom.zoom_utils import has_transcript_file, has_audio_files, clean_vtt_transcript
@@ -35,10 +34,14 @@ BATCH_SIZE = getattr(settings, "WORKER_BATCH_SIZE", 5)
 MAX_RETRIES = getattr(settings, "WORKER_MAX_RETRIES", 5)
 
 # How long we allow a single job to run (seconds). Prevents forever-hanging jobs.
-JOB_TIMEOUT_SECONDS = getattr(settings, "WORKER_JOB_TIMEOUT_SECONDS", 20 * 60)  # 20 minutes
+JOB_TIMEOUT_SECONDS = getattr(
+    settings, "WORKER_JOB_TIMEOUT_SECONDS", 20 * 60
+)  # 20 minutes
 
 # If a job has been in 'processing' state longer than this, consider it stale and reclaimable.
-STALE_PROCESSING_SECONDS = getattr(settings, "WORKER_STALE_PROCESSING_SECONDS", 30 * 60)  # 30 minutes
+STALE_PROCESSING_SECONDS = getattr(
+    settings, "WORKER_STALE_PROCESSING_SECONDS", 30 * 60
+)  # 30 minutes
 
 # How many threads to use when we want parallel local processing. The loop remains single-process,
 # but you can increase parallel workers later. Keep small to avoid memory spike.
@@ -73,7 +76,9 @@ def fetch_pending(limit: int = BATCH_SIZE) -> List[Dict[str, Any]]:
                 return stale
         except AttributeError:
             # Supabase client doesn't implement find_processing_older_than
-            logger.debug("SupabaseClient has no find_processing_older_than; skipping reclaim")
+            logger.debug(
+                "SupabaseClient has no find_processing_older_than; skipping reclaim"
+            )
         except Exception:
             logger.exception("Failed fetching stale processing summaries")
 
@@ -86,7 +91,7 @@ def claim_summary(row_id: Any) -> bool:
         payload = {
             "status": "processing",
             "claimed_at": utc_now_iso(),
-            "processing_started_at": utc_now_iso()
+            "processing_started_at": utc_now_iso(),
         }
         return supabase.update_zoom_summary(row_id, payload)
     except Exception:
@@ -94,7 +99,11 @@ def claim_summary(row_id: Any) -> bool:
         return False
 
 
-def mark_completed(row_id: Any, metadata: Optional[Dict[str, Any]] = None, exercises_generated: bool = True):
+def mark_completed(
+    row_id: Any,
+    metadata: Optional[Dict[str, Any]] = None,
+    exercises_generated: bool = True,
+):
     try:
         status = "completed" if exercises_generated else "awaiting_exercises"
         payload = {
@@ -118,14 +127,19 @@ def mark_failed(row_id: Any, error: str, attempts: int):
             "status": next_status,
             "last_error": str(error),
             "processing_attempts": attempts,
-            "updated_at": utc_now_iso()
+            "updated_at": utc_now_iso(),
         }
         if attempts < MAX_RETRIES:
             payload["next_retry_at"] = int(time.time()) + (60 * (2 ** (attempts - 1)))
         else:
             payload["processed_at"] = utc_now_iso()
         supabase.update_zoom_summary(row_id, payload)
-        logger.warning("Marked row %s as failed/pending (attempts=%s) error=%s", row_id, attempts, error)
+        logger.warning(
+            "Marked row %s as failed/pending (attempts=%s) error=%s",
+            row_id,
+            attempts,
+            error,
+        )
     except Exception:
         logger.exception("Failed to mark failed %s", row_id)
 
@@ -141,28 +155,9 @@ def _is_video_file_type(file_type: Optional[str]) -> bool:
     return ext in ("mp4", "mov", "m4v", "mkv")
 
 
-def _select_transcript_or_audio(files: List[Dict[str, Any]]):
-    """Return (transcript_file, audio_file OR video_file)"""
-    # prefer transcript
-    t = has_transcript_file(files)
-    if t:
-        return t, None
-
-    # prefer dedicated audio file
-    a = has_audio_files(files)
-    if a:
-        return None, a
-
-    # fallback: if any file looks like mp4/video, treat as audio (we'll download and extract if needed)
-    for f in files or []:
-        if _is_video_file_type(f.get("file_type")):
-            logger.debug("Treating video file as audio fallback: %s", f.get("file_type"))
-            return None, f
-
-    return None, None
-
-
-def _stream_download_to_tempfile(download_url: str, desc: str = "zoom_download", chunk_size: int = 8 * 1024 * 1024) -> str:
+def _stream_download_to_tempfile(
+    download_url: str, desc: str = "zoom_download", chunk_size: int = 8 * 1024 * 1024
+) -> str:
     """
     Stream a remote URL to a temporary file and return the path.
     This avoids loading whole file in memory.
@@ -193,7 +188,9 @@ def _stream_download_to_tempfile(download_url: str, desc: str = "zoom_download",
         raise
 
 
-def requests_get_stream_safe(url: str, headers: Dict[str, str] = None, timeout: int = 120):
+def requests_get_stream_safe(
+    url: str, headers: Dict[str, str] = None, timeout: int = 120
+):
     """Helper wrapper around requests.get with streaming and simple retry on 401 token refresh."""
     import requests
 
@@ -235,13 +232,13 @@ def _process_row_internal(row: Dict[str, Any]):
         start_time = row.get("start_time")
 
         if not teacher_email or not meeting_date:
-            raise RuntimeError("Missing teacher_email or meeting_date - cannot fetch Zoom recordings")
+            raise RuntimeError(
+                "Missing teacher_email or meeting_date - cannot fetch Zoom recordings"
+            )
 
         try:
             zoom_response = zoom_api.list_user_recordings(
-                user_id=teacher_email,
-                from_date=meeting_date,
-                to_date=meeting_date
+                user_id=teacher_email, from_date=meeting_date, to_date=meeting_date
             )
         except Exception as zoom_err:
             err_str = str(zoom_err)
@@ -257,12 +254,18 @@ def _process_row_internal(row: Dict[str, Any]):
                 logger.warning(msg)
                 mark_failed(row_id, msg, attempts)
                 return
-            logger.exception("Zoom API error while listing recordings for row %s: %s", row_id, zoom_err)
+            logger.exception(
+                "Zoom API error while listing recordings for row %s: %s",
+                row_id,
+                zoom_err,
+            )
             mark_failed(row_id, f"Zoom API error: {err_str}", attempts)
             return
 
         meetings = zoom_response.get("meetings", [])
-        logger.info("Found %d meetings for %s on %s", len(meetings), teacher_email, meeting_date)
+        logger.info(
+            "Found %d meetings for %s on %s", len(meetings), teacher_email, meeting_date
+        )
 
         # Try to select meeting (same robust logic as before)
         meeting_id = row.get("meeting_id")
@@ -272,7 +275,11 @@ def _process_row_internal(row: Dict[str, Any]):
             meeting_id_str = str(meeting_id)
             for m in meetings:
                 mid = str(m.get("id") or m.get("uuid") or "")
-                if mid and (mid == meeting_id_str or meeting_id_str in mid) and m.get("recording_files"):
+                if (
+                    mid
+                    and (mid == meeting_id_str or meeting_id_str in mid)
+                    and m.get("recording_files")
+                ):
                     selected_meeting = m
                     break
 
@@ -288,7 +295,7 @@ def _process_row_internal(row: Dict[str, Any]):
             if target_minutes is not None:
                 best_diff = None
                 for m in meetings:
-                    mst = (m.get("start_time") or "")
+                    mst = m.get("start_time") or ""
                     if len(mst) >= 16:
                         hm = mst[11:16]
                         try:
@@ -297,11 +304,17 @@ def _process_row_internal(row: Dict[str, Any]):
                         except Exception:
                             continue
                         diff = abs(mins - target_minutes)
-                        if (best_diff is None or diff < best_diff) and m.get("recording_files"):
+                        if (best_diff is None or diff < best_diff) and m.get(
+                            "recording_files"
+                        ):
                             best_diff = diff
                             selected_meeting = m
                 if best_diff is not None and best_diff > 90:
-                    logger.info("Closest meeting start time diff=%s min for row %s outside window", best_diff, row_id)
+                    logger.info(
+                        "Closest meeting start time diff=%s min for row %s outside window",
+                        best_diff,
+                        row_id,
+                    )
                     # leave selected_meeting as None (fallback to first)
 
         # fallback: first meeting with recordings
@@ -319,88 +332,167 @@ def _process_row_internal(row: Dict[str, Any]):
             return
 
         files = selected_meeting.get("recording_files", [])
-        logger.info("Selected meeting %s with %d files for row %s", selected_meeting.get("id"), len(files), row_id)
+        logger.info(
+            "Selected meeting %s with %d files for row %s",
+            selected_meeting.get("id"),
+            len(files),
+            row_id,
+        )
 
-    # Choose transcript vs audio (with mp4 fallback)
-    transcript_file, audio_file = _select_transcript_or_audio(files)
+    # Identify available files (prefer audio for Gemini transcription)
+    audio_file = has_audio_files(files)
+    transcript_file = has_transcript_file(files)
+
+    # Also check for video files as audio fallback
+    if not audio_file:
+        for f in files or []:
+            if _is_video_file_type(f.get("file_type")):
+                logger.debug(
+                    "Treating video file as audio fallback: %s", f.get("file_type")
+                )
+                audio_file = f
+                break
 
     transcript_text = ""
     transcription_source = None
     temp_file_path = None
 
     try:
-        if transcript_file:
-            # Download transcript (usually small) -- stream and decode
+        # =====================================================================
+        # PRIORITY 1: Audio file → Gemini (primary) → AssemblyAI (fallback)
+        # =====================================================================
+        if audio_file:
+            download_url = audio_file.get("download_url")
+            # Stream to temp file
+            temp_file_path = _stream_download_to_tempfile(
+                download_url, desc=f"row_{row_id}"
+            )
+            logger.info(
+                "Downloaded audio/video to temp file %s for row %s",
+                temp_file_path,
+                row_id,
+            )
+
+            # -----------------------------------------------------------------
+            # Try Gemini first (PRIMARY)
+            # -----------------------------------------------------------------
+            try:
+                from ..ai.utils.gemini_transcription_helper import (
+                    GeminiTranscriptionHelper,
+                )
+
+                gemini = GeminiTranscriptionHelper()
+                if gemini.enabled:
+                    logger.info(
+                        "Using Gemini transcription (primary) for row %s", row_id
+                    )
+                    gemini_result = gemini.transcribe_audio_file(temp_file_path)
+                    if gemini_result and len(gemini_result.strip()) > 50:
+                        transcript_text = gemini_result
+                        transcription_source = "gemini"
+                        logger.info(
+                            "Gemini transcription success for row %s (chars=%d)",
+                            row_id,
+                            len(transcript_text),
+                        )
+                    else:
+                        logger.warning(
+                            "Gemini returned empty/short transcription for row %s",
+                            row_id,
+                        )
+                else:
+                    logger.info(
+                        "Gemini not enabled, will try AssemblyAI fallback for row %s",
+                        row_id,
+                    )
+            except Exception as gemini_exc:
+                logger.warning(
+                    "Gemini transcription failed for row %s: %s", row_id, gemini_exc
+                )
+
+            # -----------------------------------------------------------------
+            # Try AssemblyAI as fallback if Gemini failed
+            # -----------------------------------------------------------------
+            if not transcript_text:
+                try:
+                    from ..ai.utils.assemblyai_helper import AssemblyAIHelper
+
+                    aai = AssemblyAIHelper()
+                except Exception:
+                    aai = None
+                    logger.warning(
+                        "Failed to import AssemblyAIHelper for row %s", row_id
+                    )
+
+                if aai and getattr(aai, "enabled", False):
+                    logger.info(
+                        "Using AssemblyAI transcription (fallback) for row %s", row_id
+                    )
+                    transcript_result = None
+
+                    # Try SDK local file transcription first
+                    try:
+                        transcript_result = aai.transcribe_local_file(
+                            temp_file_path, language_code="en"
+                        )
+                    except Exception:
+                        logger.warning(
+                            "AssemblyAI SDK transcribe_local_file failed for row %s",
+                            row_id,
+                        )
+
+                    # Try HTTP chunked upload fallback
+                    if not transcript_result:
+                        try:
+                            with open(temp_file_path, "rb") as fh:
+                                audio_bytes = fh.read()
+                                transcript_result = aai.transcribe_audio_bytes(
+                                    audio_bytes
+                                )
+                        except Exception:
+                            logger.warning(
+                                "AssemblyAI HTTP transcribe_audio_bytes failed for row %s",
+                                row_id,
+                            )
+
+                    if transcript_result and transcript_result.get("text"):
+                        transcript_text = transcript_result.get("text", "")
+                        transcription_source = "assemblyai"
+                        logger.info(
+                            "AssemblyAI transcription success for row %s (chars=%d)",
+                            row_id,
+                            len(transcript_text),
+                        )
+
+        # =====================================================================
+        # PRIORITY 2: Zoom native transcript (fallback if audio transcription failed)
+        # =====================================================================
+        if not transcript_text and transcript_file:
             download_url = transcript_file.get("download_url")
             try:
                 content_bytes = zoom_api.download_file(download_url)
                 content = content_bytes.decode("utf-8", errors="ignore")
                 transcript_text = clean_vtt_transcript(content)
                 transcription_source = "zoom_native_transcript"
-                logger.info("Downloaded native transcript for row %s, length=%d", row_id, len(transcript_text or ""))
+                logger.info(
+                    "Using Zoom native transcript for row %s, length=%d",
+                    row_id,
+                    len(transcript_text or ""),
+                )
             except Exception:
-                logger.exception("Failed downloading transcript file for row %s", row_id)
-                raise
+                logger.exception(
+                    "Failed downloading Zoom transcript file for row %s", row_id
+                )
 
-        elif audio_file:
-            download_url = audio_file.get("download_url")
-            # stream to temp file
-            temp_file_path = _stream_download_to_tempfile(download_url, desc=f"row_{row_id}")
-            logger.info("Downloaded audio/video to temp file %s for row %s", temp_file_path, row_id)
-
-            # transcribe using AssemblyAIHelper (prefer local-file SDK method)
-            try:
-                from ..ai.utils.assemblyai_helper import AssemblyAIHelper
-                aai = AssemblyAIHelper()
-            except Exception:
-                aai = None
-                logger.exception("Failed to import AssemblyAIHelper; will attempt HTTP fallback if available")
-
-            transcript_result = None
-            # Try SDK local file transcription first (recommended)
-            if aai and getattr(aai, "enabled", False):
-                logger.info("Using AssemblyAI SDK/local-file transcription for row %s", row_id)
-                try:
-                    transcript_result = aai.transcribe_local_file(temp_file_path, language_code="en")
-                except Exception:
-                    logger.exception("AssemblyAI SDK transcribe_local_file failed for row %s", row_id)
-
-            # Next, try HTTP chunked upload fallback (transcribe_audio_bytes expects bytes)
-            if not transcript_result and aai:
-                try:
-                    logger.info("Using AssemblyAI HTTP upload (streaming file bytes) for row %s", row_id)
-                    # Read file in streaming chunks to memory-limited streams.
-                    # aai.transcribe_audio_bytes accepts bytes blob in your helper; avoid loading into memory fully
-                    # We'll stream file into memory in chunks but upload via requests inside helper.
-                    with open(temp_file_path, "rb") as fh:
-                        audio_bytes = fh.read()  # assemblyai_helper.transcribe_audio_bytes currently expects bytes
-                        transcript_result = aai.transcribe_audio_bytes(audio_bytes)
-                except Exception:
-                    logger.exception("AssemblyAI HTTP transcribe_audio_bytes failed for row %s", row_id)
-                    transcript_result = None
-
-            # If still not available, try to return a helpful error
-            if transcript_result and transcript_result.get("text"):
-                transcript_text = transcript_result.get("text", "")
-                transcription_source = "assemblyai"
-                logger.info("AssemblyAI transcription success for row %s (chars=%d)", row_id, len(transcript_text or ""))
-            else:
-                # No transcript; mark failed with helpful reason
-                attempts = int((row.get("processing_attempts") or 0) + 1)
-                # Distinguish empty transcript vs failure
-                duration = transcript_result.get("duration") if transcript_result else None
-                if duration is not None and duration <= 5:
-                    msg = f"Recording too short ({duration}s) to transcribe"
-                else:
-                    msg = "AssemblyAI transcription returned empty text or failed"
-                logger.warning(msg + " for row %s", row_id)
-                mark_failed(row_id, msg, attempts)
-                return
-
-        else:
-            # No transcript nor audio found
+        # =====================================================================
+        # No transcription available
+        # =====================================================================
+        if not transcript_text:
             attempts = int((row.get("processing_attempts") or 0) + 1)
-            msg = "No transcript or audio files found in recording"
+            if not audio_file and not transcript_file:
+                msg = "No audio or transcript files found in recording"
+            else:
+                msg = "All transcription methods failed (Gemini, AssemblyAI, Zoom VTT)"
             logger.warning(msg + " for row %s", row_id)
             mark_failed(row_id, msg, attempts)
             return
@@ -420,7 +512,7 @@ def _process_row_internal(row: Dict[str, Any]):
             "transcript_source": transcription_source or "unknown",
             "transcription_status": "completed",
             "status": "awaiting_exercises",
-            "processing_completed_at": utc_now_iso()
+            "processing_completed_at": utc_now_iso(),
         }
         supabase.update_zoom_summary(row_id, update_payload)
         logger.info("Persisted transcript for row %s", row_id)
@@ -435,20 +527,35 @@ def _process_row_internal(row: Dict[str, Any]):
         exercise_generation_failed = False
         try:
             from ..ai.orchestrator import process_transcript_to_exercises
+
             result = process_transcript_to_exercises(summary_for_ai, persist=True)
             if result.get("ok"):
-                logger.info("Generated exercises for row %s: %s", row_id, result.get("counts"))
+                logger.info(
+                    "Generated exercises for row %s: %s", row_id, result.get("counts")
+                )
             else:
-                logger.warning("Exercise generation reported failure for row %s: %s", row_id, result.get("reason"))
+                logger.warning(
+                    "Exercise generation reported failure for row %s: %s",
+                    row_id,
+                    result.get("reason"),
+                )
                 exercise_generation_failed = True
         except Exception as e:
             logger.exception("Exercise generation exception for row %s: %s", row_id, e)
             exercise_generation_failed = True
 
         if exercise_generation_failed:
-            mark_completed(row_id, metadata={"transcription_source": transcription_source}, exercises_generated=False)
+            mark_completed(
+                row_id,
+                metadata={"transcription_source": transcription_source},
+                exercises_generated=False,
+            )
         else:
-            mark_completed(row_id, metadata={"transcription_source": transcription_source}, exercises_generated=True)
+            mark_completed(
+                row_id,
+                metadata={"transcription_source": transcription_source},
+                exercises_generated=True,
+            )
 
     finally:
         # Ensure temp file cleanup
@@ -483,7 +590,12 @@ def process_row(row: Dict[str, Any]):
 
 
 def run_forever():
-    logger.info("Zoom processor started. Poll interval %ds; batch=%s; timeout=%ds", POLL_INTERVAL, BATCH_SIZE, JOB_TIMEOUT_SECONDS)
+    logger.info(
+        "Zoom processor started. Poll interval %ds; batch=%s; timeout=%ds",
+        POLL_INTERVAL,
+        BATCH_SIZE,
+        JOB_TIMEOUT_SECONDS,
+    )
     while True:
         try:
             pending = fetch_pending(BATCH_SIZE)
@@ -494,12 +606,16 @@ def run_forever():
                 try:
                     process_row(row)
                 except Exception:
-                    logger.exception("Unhandled exception while processing row, continuing to next")
+                    logger.exception(
+                        "Unhandled exception while processing row, continuing to next"
+                    )
         except KeyboardInterrupt:
             logger.info("Processor interrupted; exiting.")
             break
         except Exception:
-            logger.exception("Unexpected error in processor loop; sleeping before retry.")
+            logger.exception(
+                "Unexpected error in processor loop; sleeping before retry."
+            )
             time.sleep(min(POLL_INTERVAL, 60))
 
 

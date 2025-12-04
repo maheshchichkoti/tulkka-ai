@@ -35,10 +35,12 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 TRANSCRIPTION_PROMPT = """You are given a conversation between a student and a teacher. The teacher is trying to teach english. 
-Generate transcription, always following the given format:
-[start time(hour:minute:second)] [end time(hour:minute:second)] Speaker name(teacher/student): transcription
+Generate a transcript, always following the given format:
+[timestamp] Speaker name(teacher or student): transcription
+eg:
+[12:26] teacher: hello!
 
-Keep the segments short. There may be parts spoken in languages other than English. Transcribe them accurately using English Latin letters only and always provide their English translation alongside. For example: Yofi(good). Always ignore silences.
+Keep the segments short. There may be parts spoken in languages other than English. Transcribe them accurately using English Latin letters only and always provide their English translation alongside. For example: Yofi(good). 
 """
 
 SUMMARY_PROMPT = """You are given conversation between a student and a teacher. The teacher is trying to teach english.  Return summary of the conversation. The summary should include:

@@ -22,6 +22,7 @@ random.seed(1337)
 # Optional translator with proper error handling
 try:
     from deep_translator import GoogleTranslator
+
     _TRANSLATOR_AVAILABLE = True
 except ImportError:
     GoogleTranslator = None  # type: ignore
@@ -39,6 +40,7 @@ def _translator(target: str = "he"):
         logger.warning("Translator init failed: %s", e)
         return None
 
+
 def _tr(text: str, translator) -> str:
     """Translate text using the provided translator instance."""
     if not text or not translator:
@@ -50,10 +52,24 @@ def _tr(text: str, translator) -> str:
         logger.debug("Translation failed for '%s': %s", text[:20], e)
         return ""
 
+
 COMMON_WORDS = {
-    "open", "close", "name", "please", "camera", "hello",
-    "thank", "fine", "great", "eat", "go", "have", "is", "are"
+    "open",
+    "close",
+    "name",
+    "please",
+    "camera",
+    "hello",
+    "thank",
+    "fine",
+    "great",
+    "eat",
+    "go",
+    "have",
+    "is",
+    "are",
 }
+
 
 def _assess_difficulty(text: str) -> str:
     if not text:
@@ -75,6 +91,7 @@ def _assess_difficulty(text: str) -> str:
         return "intermediate"
     return "advanced"
 
+
 def _clean_sentence_for_example(sent: str) -> str:
     if not sent:
         return ""
@@ -82,21 +99,23 @@ def _clean_sentence_for_example(sent: str) -> str:
     # Collapse internal whitespace
     s = re.sub(r"\s+", " ", s).strip()
     # Remove leading punctuation such as stray commas or quotes
-    s = re.sub(r'^[,;:!?.\"\']+', "", s).strip()
+    s = re.sub(r"^[,;:!?.\"\']+", "", s).strip()
     # Normalize trailing punctuation like ',.' or '.,' into a single mark
     s = re.sub(r"[ ,;:]+([.!?])$", r"\1", s)
     # Remove dangling comma/semicolon/colon if they are now terminal
     s = re.sub(r"[,;:]$", "", s)
     # Ensure sentence ends with a single terminator
     if not re.search(r"[.!?]$", s):
-        s = s.rstrip(',;:') + "."
+        s = s.rstrip(",;:") + "."
     return s
+
 
 def _to_ing(word: str) -> str:
     w = word.lower()
     if w.endswith("e") and len(w) > 2:
         return w[:-1] + "ing"
     return w + "ing"
+
 
 def _to_past(word: str) -> str:
     w = word.lower()
@@ -106,6 +125,7 @@ def _to_past(word: str) -> str:
         return w[:-1] + "ied"
     return w + "ed"
 
+
 def _pluralize(word: str) -> str:
     w = word.lower()
     if w.endswith("y") and w[-2] not in "aeiou":
@@ -114,14 +134,16 @@ def _pluralize(word: str) -> str:
         return w + "es"
     return w + "s"
 
+
 def _common_misspelling(word: str) -> str:
     w = word
     if len(w) > 3:
         i = 1
-        swapped = w[:i] + w[i+1:i+2] + w[i:i+1] + w[i+2:]
+        swapped = w[:i] + w[i + 1 : i + 2] + w[i : i + 1] + w[i + 2 :]
         if swapped.lower() != w.lower():
             return swapped
     return w[:-1] if len(w) > 1 else w
+
 
 def _unique_keep_first(items: List[str]) -> List[str]:
     out = []
@@ -134,55 +156,377 @@ def _unique_keep_first(items: List[str]) -> List[str]:
         out.append(x)
     return out
 
-def _build_options_for_target(target: str, concept_hint: Optional[str] = None) -> List[str]:
+
+# Real English word lists for quality distractors (no synthetic nonsense)
+COMMON_VERBS = [
+    "go",
+    "goes",
+    "went",
+    "come",
+    "comes",
+    "came",
+    "take",
+    "takes",
+    "took",
+    "make",
+    "makes",
+    "made",
+    "get",
+    "gets",
+    "got",
+    "give",
+    "gives",
+    "gave",
+    "see",
+    "sees",
+    "saw",
+    "know",
+    "knows",
+    "knew",
+    "think",
+    "thinks",
+    "thought",
+    "say",
+    "says",
+    "said",
+    "tell",
+    "tells",
+    "told",
+    "ask",
+    "asks",
+    "asked",
+    "use",
+    "uses",
+    "used",
+    "find",
+    "finds",
+    "found",
+    "put",
+    "puts",
+    "try",
+    "tries",
+    "tried",
+    "leave",
+    "leaves",
+    "left",
+    "call",
+    "calls",
+    "called",
+    "keep",
+    "keeps",
+    "kept",
+    "let",
+    "lets",
+    "begin",
+    "begins",
+    "began",
+    "seem",
+    "seems",
+    "seemed",
+    "help",
+    "helps",
+    "helped",
+    "show",
+    "shows",
+    "showed",
+    "hear",
+    "hears",
+    "heard",
+    "play",
+    "plays",
+    "played",
+    "run",
+    "runs",
+    "ran",
+    "move",
+    "moves",
+    "moved",
+    "live",
+    "lives",
+    "lived",
+    "believe",
+    "believes",
+    "hold",
+    "holds",
+    "held",
+    "bring",
+    "brings",
+    "brought",
+    "happen",
+    "happens",
+    "write",
+    "writes",
+    "wrote",
+    "sit",
+    "sits",
+    "sat",
+    "stand",
+    "stands",
+    "stood",
+    "lose",
+    "loses",
+    "lost",
+    "pay",
+    "pays",
+    "paid",
+    "meet",
+    "meets",
+    "met",
+    "walk",
+    "walks",
+    "walked",
+    "eat",
+    "eats",
+    "ate",
+    "drink",
+    "drinks",
+    "drank",
+    "read",
+    "reads",
+    "sleep",
+    "sleeps",
+    "slept",
+    "speak",
+    "speaks",
+    "spoke",
+]
+
+COMMON_NOUNS = [
+    "time",
+    "year",
+    "people",
+    "way",
+    "day",
+    "man",
+    "woman",
+    "child",
+    "world",
+    "life",
+    "hand",
+    "part",
+    "place",
+    "case",
+    "week",
+    "company",
+    "system",
+    "question",
+    "work",
+    "number",
+    "night",
+    "point",
+    "home",
+    "water",
+    "room",
+    "mother",
+    "area",
+    "money",
+    "story",
+    "fact",
+    "month",
+    "book",
+    "eye",
+    "job",
+    "word",
+    "business",
+    "side",
+    "kind",
+    "head",
+    "house",
+    "friend",
+    "father",
+    "hour",
+    "game",
+    "line",
+    "end",
+    "member",
+    "car",
+    "city",
+    "name",
+    "team",
+    "minute",
+    "idea",
+    "body",
+    "back",
+    "parent",
+    "face",
+    "door",
+    "person",
+    "teacher",
+    "student",
+    "school",
+    "lesson",
+    "class",
+    "homework",
+    "answer",
+]
+
+COMMON_ADJECTIVES = [
+    "good",
+    "new",
+    "first",
+    "last",
+    "long",
+    "great",
+    "little",
+    "own",
+    "other",
+    "old",
+    "right",
+    "big",
+    "high",
+    "different",
+    "small",
+    "large",
+    "next",
+    "early",
+    "young",
+    "important",
+    "few",
+    "bad",
+    "same",
+    "able",
+    "free",
+    "sure",
+    "clear",
+    "full",
+    "special",
+    "easy",
+    "hard",
+    "strong",
+    "possible",
+    "whole",
+    "real",
+    "best",
+    "better",
+    "true",
+    "happy",
+    "nice",
+    "beautiful",
+    "simple",
+    "fast",
+]
+
+
+def _build_options_for_target(
+    target: str, concept_hint: Optional[str] = None
+) -> List[str]:
+    """
+    Create 4 plausible options including target using REAL English words only.
+    Never generates nonsense like 'goesing', 'wordses', 'eated'.
+    """
     t = target.strip()
+    t_lower = t.lower()
     opts = [t]
-    if re.match(r"^[A-Za-z']+$", t) and " " not in t:
-        candidates = [
-            _to_ing(t),
-            _to_past(t),
-            _pluralize(t),
-            _common_misspelling(t),
-            t.capitalize(),
+
+    # Find semantically related real words based on concept
+    if concept_hint == "third_person" or (
+        t_lower.endswith("s") and not t_lower.endswith("ss")
+    ):
+        # For third person verbs, use real verb forms
+        base = t_lower.rstrip("s")
+        related = [
+            v for v in COMMON_VERBS if v.startswith(base[:2]) and v.lower() != t_lower
         ]
-        opts.extend(c for c in candidates if c and c.lower() != t.lower())
-    else:
-        base = re.sub(r"[^\w\s]", "", t)
-        words = base.split()
-        content = next((w for w in words if len(w) > 3), words[0])
-        opts.extend([
-            base.replace(content, _pluralize(content)),
-            base.replace(content, _to_ing(content)),
-            base.replace(content, _common_misspelling(content)),
-            base.replace(content, content.capitalize()),
-        ])
-    if concept_hint == "third_person":
-        opts = [
-            t,
-            (t.rstrip("s")),
-            (t + "s"),
-            _to_ing(t),
-            _common_misspelling(t),
+        if len(related) < 3:
+            related = [
+                v
+                for v in COMMON_VERBS
+                if abs(len(v) - len(t)) <= 2 and v.lower() != t_lower
+            ]
+        opts.extend(related[:5])
+
+    elif concept_hint == "verb_forms":
+        # Use real verb variations
+        related = [
+            v
+            for v in COMMON_VERBS
+            if v.startswith(t_lower[:2]) and v.lower() != t_lower
         ]
+        if len(related) < 3:
+            related = random.sample(
+                [v for v in COMMON_VERBS if v.lower() != t_lower],
+                min(5, len(COMMON_VERBS) - 1),
+            )
+        opts.extend(related[:5])
+
     elif concept_hint == "article":
+        # Article confusion options
         words = t.split()
-        noun = " ".join(words[1:]) if words and words[0] in ("a", "an", "the") else t
-        opts = [t, f"the {noun}", f"a {noun}", f"an {noun}", noun]
+        if words and words[0].lower() in ("a", "an", "the"):
+            noun = " ".join(words[1:]) if len(words) > 1 else "item"
+            opts = [t, f"the {noun}", f"a {noun}", f"an {noun}"]
+        else:
+            opts = [t, f"the {t}", f"a {t}", f"an {t}"]
+
     elif concept_hint == "preposition":
-        swaps = ["to", "at", "in", "on", "for", "with", "about"]
-        parts = t.split()
-        if len(parts) >= 3:
-            mid = min(2, len(parts) - 2)
-            noun = parts[mid + 1]
-            candidates = [f"{' '.join(parts[:mid])} {p} {noun}" for p in swaps]
-            opts = [t] + candidates
+        # Preposition confusion with real prepositions
+        preps = ["to", "at", "in", "on", "for", "with", "about", "from", "by"]
+        opts = [t] + [p for p in preps if p.lower() != t_lower][:4]
+
+    else:
+        # General case: find similar real words
+        all_words = COMMON_VERBS + COMMON_NOUNS + COMMON_ADJECTIVES
+        if len(t) <= 5:
+            similar = [
+                w
+                for w in all_words
+                if abs(len(w) - len(t)) <= 1 and w.lower() != t_lower
+            ]
+        else:
+            similar = [
+                w
+                for w in all_words
+                if w.startswith(t_lower[0]) and w.lower() != t_lower
+            ]
+            if len(similar) < 3:
+                similar = [
+                    w
+                    for w in all_words
+                    if len(w) >= len(t) - 2 and w.lower() != t_lower
+                ]
+        if similar:
+            opts.extend(random.sample(similar, min(5, len(similar))))
+
+    # Deduplicate
     opts = _unique_keep_first(opts)
+
+    # Ensure target is included
     if t not in opts:
         opts.insert(0, t)
+
+    # Take first 4 unique options
     final = opts[:4]
+
+    # If we still don't have 4, pad with common real words
+    fallback_words = [
+        "the",
+        "and",
+        "for",
+        "are",
+        "but",
+        "not",
+        "you",
+        "all",
+        "can",
+        "her",
+        "was",
+        "one",
+        "our",
+    ]
     while len(final) < 4:
-        final.append(t + str(random.randint(1, 99)))
+        for fw in fallback_words:
+            if fw.lower() not in [f.lower() for f in final]:
+                final.append(fw)
+                break
+        else:
+            break
+        if len(final) >= 4:
+            break
+
     random.shuffle(final)
+
+    # Ensure target is still present after shuffle
     if t not in final:
         final[0] = t
-    return final
+
+    return final[:4]

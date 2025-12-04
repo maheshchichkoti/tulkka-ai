@@ -16,16 +16,176 @@ logger = logging.getLogger(__name__)
 class VocabularyExtractor:
 
     def __init__(self):
-        # Words to always ignore (fillers, function words)
+        # Words to always ignore (fillers, function words, ultra-basic words)
         self.skip_words = {
-            'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been',
-            'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
-            'can', 'could', 'should', 'may', 'might', 'must', 'i', 'you',
-            'he', 'she', 'it', 'we', 'they', 'this', 'that', 'these',
-            'those', 'okay', 'ok', 'hi', 'hello', 'bye', 'yeah', 'uh',
-            'um', 'hmm', 'right',
+            # Function words
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "can",
+            "could",
+            "should",
+            "may",
+            "might",
+            "must",
+            "i",
+            "you",
+            "he",
+            "she",
+            "it",
+            "we",
+            "they",
+            "this",
+            "that",
+            "these",
+            "those",
+            "okay",
+            "ok",
+            "hi",
+            "hello",
+            "bye",
+            "yeah",
+            "uh",
+            "um",
+            "hmm",
+            "right",
+            "and",
+            "or",
+            "but",
+            "so",
+            "if",
+            "then",
+            "when",
+            "where",
+            "what",
+            "who",
+            "how",
+            "why",
+            "which",
+            "there",
+            "here",
+            "now",
+            "just",
+            "also",
+            "very",
+            "too",
+            "more",
+            "most",
+            "some",
+            "any",
+            "all",
+            "no",
+            "not",
+            "yes",
+            "your",
+            "my",
+            "his",
+            "her",
+            "its",
+            "our",
+            "their",
+            "me",
+            "him",
+            "us",
+            "them",
+            # Ultra-basic words (A1 level - too simple for exercises)
+            "welcome",
+            "today",
+            "fine",
+            "thank",
+            "thanks",
+            "nice",
+            "meet",
+            "good",
+            "great",
+            "well",
+            "please",
+            "sorry",
+            "name",
+            "like",
+            "want",
+            "need",
+            "know",
+            "think",
+            "see",
+            "look",
+            "come",
+            "go",
+            "get",
+            "make",
+            "take",
+            "give",
+            "tell",
+            "say",
+            "ask",
+            "use",
+            "find",
+            "put",
+            "try",
+            "let",
+            "keep",
+            "begin",
+            "start",
+            "stop",
+            "open",
+            "close",
+            "read",
+            "write",
+            "learn",
+            "teach",
+            "work",
+            "play",
+            "help",
+            "show",
+            "call",
+            "feel",
+            "become",
+            "leave",
+            "bring",
+            "happen",
+            "turn",
+            "move",
+            "live",
+            "believe",
+            "hold",
+            # Time/basic nouns
+            "time",
+            "day",
+            "week",
+            "month",
+            "year",
+            "morning",
+            "evening",
+            "night",
+            "today",
+            "tomorrow",
+            "yesterday",
+            "now",
+            "then",
+            # Classroom noise
+            "okay",
+            "alright",
+            "right",
+            "yes",
+            "no",
+            "maybe",
+            "sure",
             # Known ASR artefact / noise in current transcripts
-            'enforcement',
+            "enforcement",
         }
 
         self.name_pattern = re.compile(r"^[A-Z][a-z]+$")
@@ -92,7 +252,7 @@ class VocabularyExtractor:
             r"not\s+['\"]([^'\"]+)['\"]\s*,?\s*(?:say|use)\s+['\"]([^'\"]+)['\"]",
             r"don't say\s+['\"]([^'\"]+)['\"]\s*,?\s*say\s+['\"]([^'\"]+)['\"]",
             r"instead of\s+['\"]([^'\"]+)['\"]\s*,?\s*(?:use|say)\s+['\"]([^'\"]+)['\"]",
-            r"['\"]([^'\"]+)['\"]\s+should\s+be\s+['\"]([^'\"]+)['\"]"
+            r"['\"]([^'\"]+)['\"]\s+should\s+be\s+['\"]([^'\"]+)['\"]",
         ]
 
         for p in patterns:
@@ -109,13 +269,15 @@ class VocabularyExtractor:
                 if len(clean_word) < 3:
                     continue
 
-                items.append({
-                    "word": clean_word.lower(),
-                    "context": f"corrected: {incorrect} → {correct}",
-                    "category": "corrected_usage",
-                    "priority": "high",
-                    "difficulty": self._difficulty(clean_word),
-                })
+                items.append(
+                    {
+                        "word": clean_word.lower(),
+                        "context": f"corrected: {incorrect} → {correct}",
+                        "category": "corrected_usage",
+                        "priority": "high",
+                        "difficulty": self._difficulty(clean_word),
+                    }
+                )
 
         return items
 
@@ -138,13 +300,15 @@ class VocabularyExtractor:
                 if w in self.skip_words:
                     continue
 
-                items.append({
-                    "word": w,
-                    "context": raw_list,
-                    "category": "explicit_vocabulary",
-                    "priority": "high",
-                    "difficulty": self._difficulty(w),
-                })
+                items.append(
+                    {
+                        "word": w,
+                        "context": raw_list,
+                        "category": "explicit_vocabulary",
+                        "priority": "high",
+                        "difficulty": self._difficulty(w),
+                    }
+                )
 
         return items
 
@@ -171,13 +335,15 @@ class VocabularyExtractor:
             if not re.match(r"[A-Za-z]{3,20}", token):
                 continue
 
-            items.append({
-                "word": w,
-                "context": "",
-                "category": "content_word",
-                "priority": "medium",
-                "difficulty": self._difficulty(w),
-            })
+            items.append(
+                {
+                    "word": w,
+                    "context": "",
+                    "category": "content_word",
+                    "priority": "medium",
+                    "difficulty": self._difficulty(w),
+                }
+            )
 
         return items
 
