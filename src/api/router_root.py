@@ -29,26 +29,31 @@ async def health() -> Dict[str, Any]:
 async def health_detailed() -> JSONResponse:
     """
     Detailed health check with dependency status.
-    
+
     Returns 200 if core services are healthy, 503 otherwise.
     """
     checks: Dict[str, Dict[str, Any]] = {}
     overall_healthy = True
-    
+
     # Check MySQL
     try:
         from ..db.mysql_pool import AsyncMySQLPool, execute_query
+
         pool = await AsyncMySQLPool.get_pool()
         if pool:
             await execute_query("SELECT 1", fetchone=True, log=False)
             checks["mysql"] = {"status": "healthy", "connected": True}
         else:
-            checks["mysql"] = {"status": "unhealthy", "connected": False, "error": "Pool not initialized"}
+            checks["mysql"] = {
+                "status": "unhealthy",
+                "connected": False,
+                "error": "Pool not initialized",
+            }
             overall_healthy = False
     except Exception as e:
         checks["mysql"] = {"status": "unhealthy", "connected": False, "error": str(e)}
         overall_healthy = False
-    
+
     # Check Supabase
     try:
         supabase = SupabaseClient()
@@ -58,33 +63,58 @@ async def health_detailed() -> JSONResponse:
             checks["supabase"] = {"status": "unhealthy", "connected": False}
             # Supabase is optional, don't fail overall health
     except Exception as e:
-        checks["supabase"] = {"status": "unhealthy", "connected": False, "error": str(e)}
-    
+        checks["supabase"] = {
+            "status": "unhealthy",
+            "connected": False,
+            "error": str(e),
+        }
+
     # Check Groq (optional)
     try:
         from ..ai.utils.groq_helper import GroqClient
+
         groq = GroqClient()
         checks["groq"] = {
             "status": "healthy" if groq.enabled else "disabled",
             "enabled": groq.enabled,
-            "model": groq.model if groq.enabled else None
+            "model": groq.model if groq.enabled else None,
         }
     except Exception as e:
         checks["groq"] = {"status": "error", "error": str(e)}
-    
-    # Check AssemblyAI (optional)
+
+    # Check Gemini Transcription (primary)
+    try:
+        from ..ai.utils.gemini_transcription_helper import GeminiTranscriptionHelper
+
+        gemini_transcription = GeminiTranscriptionHelper()
+        checks["gemini_transcription"] = {
+            "status": "healthy" if gemini_transcription.enabled else "disabled",
+            "enabled": gemini_transcription.enabled,
+            "model": (
+                gemini_transcription.model_name
+                if gemini_transcription.enabled
+                else None
+            ),
+            "role": "primary",
+        }
+    except Exception as e:
+        checks["gemini_transcription"] = {"status": "error", "error": str(e)}
+
+    # Check AssemblyAI (fallback)
     try:
         from ..ai.utils.assemblyai_helper import AssemblyAIHelper
+
         aai = AssemblyAIHelper()
         checks["assemblyai"] = {
             "status": "healthy" if aai.enabled else "disabled",
-            "enabled": aai.enabled
+            "enabled": aai.enabled,
+            "role": "fallback",
         }
     except Exception as e:
         checks["assemblyai"] = {"status": "error", "error": str(e)}
-    
+
     status_code = 200 if overall_healthy else 503
-    
+
     return JSONResponse(
         status_code=status_code,
         content={
@@ -92,8 +122,8 @@ async def health_detailed() -> JSONResponse:
             "timestamp": utc_now_iso(),
             "environment": settings.ENVIRONMENT,
             "version": "1.0.0",
-            "checks": checks
-        }
+            "checks": checks,
+        },
     )
 
 
@@ -101,21 +131,20 @@ async def health_detailed() -> JSONResponse:
 async def readiness() -> JSONResponse:
     """
     Kubernetes readiness probe.
-    
+
     Returns 200 only if the service can accept traffic.
     """
     try:
         from ..db.mysql_pool import AsyncMySQLPool
+
         pool = await AsyncMySQLPool.get_pool()
         if pool:
             return JSONResponse(
-                status_code=200,
-                content={"ready": True, "timestamp": utc_now_iso()}
+                status_code=200, content={"ready": True, "timestamp": utc_now_iso()}
             )
     except Exception:
         pass
-    
+
     return JSONResponse(
-        status_code=503,
-        content={"ready": False, "timestamp": utc_now_iso()}
+        status_code=503, content={"ready": False, "timestamp": utc_now_iso()}
     )

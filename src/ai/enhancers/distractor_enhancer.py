@@ -15,10 +15,13 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from typing import Dict, List, Any, Optional
 
 logger = logging.getLogger(__name__)
 
+MAX_RETRIES = 3
+RETRY_DELAY = 2  # seconds
 
 def _parse_json_safe(text: str) -> Optional[Any]:
     """Parse JSON from LLM response, handling markdown code blocks."""
@@ -157,33 +160,40 @@ Return ONLY a JSON array with this exact structure:
 The correct answer must be one of the 4 options. Order should be shuffled.
 Return ONLY the JSON array, no other text."""
 
-    try:
-        response = groq_client.chat(
-            system_prompt,
-            user_prompt,
-            temperature=0.3,
-            max_tokens=2000
-        )
-        
-        if not response:
-            logger.warning("Empty response from Groq; keeping original distractors")
-            return exercises
-        
-        enhanced_items = _parse_json_safe(response)
-        
-        if not isinstance(enhanced_items, list):
-            logger.warning("Invalid response format from Groq; keeping original distractors")
-            return exercises
-        
-        # Apply enhancements
-        enhanced_exercises = _apply_enhancements(exercises, enhanced_items)
-        
-        logger.info("Successfully enhanced %d items with semantic distractors", len(enhanced_items))
-        return enhanced_exercises
-        
-    except Exception as e:
-        logger.exception("Distractor enhancement failed: %s", e)
-        return exercises
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = groq_client.chat(
+                system_prompt,
+                user_prompt,
+                temperature=0.3,
+                max_tokens=2000
+            )
+            
+            if not response:
+                logger.warning("Empty response from Groq; keeping original distractors")
+                continue  # Retry on empty response
+            
+            enhanced_items = _parse_json_safe(response)
+            
+            if not isinstance(enhanced_items, list):
+                logger.warning("Invalid response format from Groq; retrying...")
+                continue  # Retry on invalid format
+            
+            # Apply enhancements
+            enhanced_exercises = _apply_enhancements(exercises, enhanced_items)
+            
+            logger.info("Successfully enhanced %d items with semantic distractors", len(enhanced_items))
+            return enhanced_exercises
+            
+        except (ConnectionError, TimeoutError) as e:
+            logger.warning(f"Groq connection error (attempt {attempt+1}/{MAX_RETRIES}): {e}")
+            time.sleep(RETRY_DELAY)
+        except Exception as e:
+            logger.exception(f"Unexpected error: {e}")
+            break
+    
+    logger.error("Distractor enhancement failed after retries")
+    return exercises
 
 
 def _apply_enhancements(

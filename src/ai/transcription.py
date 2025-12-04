@@ -4,11 +4,13 @@ Transcription utilities.
 
 Supports:
 - using an uploaded Zoom transcript file (VTT/TXT) if provided
-- AssemblyAI (or similar) for audio transcription when AssemblyAI API key is set
+- Gemini (primary) for audio transcription when GOOGLE_API_KEY is set
+- AssemblyAI (fallback) for audio transcription when ASSEMBLYAI_API_KEY is set
 - pluggable: callers may pass their own transcribe_fn for custom provider
 
 Functions:
 - transcribe_recording(record_row, assemblyai_client=None, transcribe_fn=None)
+- transcribe_audio_with_fallback(audio_bytes) - Gemini primary, AssemblyAI fallback
 """
 
 from __future__ import annotations
@@ -22,15 +24,134 @@ from ..time_utils import utc_now_iso
 
 logger = logging.getLogger(__name__)
 
+
+# ============================================================================
+# Gemini Transcription (Primary)
+# ============================================================================
+
+
+def _transcribe_with_gemini(
+    audio_bytes: bytes, language_hint: str = None
+) -> Optional[str]:
+    """
+    Transcribe audio using Gemini (primary method).
+
+    Args:
+        audio_bytes: Raw audio bytes
+        language_hint: Optional language hint (not used by Gemini)
+
+    Returns:
+        Transcription text, or None if failed
+    """
+    try:
+        from .utils.gemini_transcription_helper import GeminiTranscriptionHelper
+
+        helper = GeminiTranscriptionHelper()
+        if not helper.enabled:
+            logger.debug("Gemini transcription not enabled, skipping")
+            return None
+
+        result = helper.transcribe_audio_bytes(audio_bytes, language_hint)
+        if result:
+            logger.info(f"Gemini transcription successful: {len(result)} chars")
+            return result
+        else:
+            logger.warning("Gemini transcription returned empty result")
+            return None
+
+    except ImportError as e:
+        logger.debug(f"Gemini transcription helper not available: {e}")
+        return None
+    except Exception as e:
+        logger.warning(f"Gemini transcription failed: {e}")
+        return None
+
+
+# ============================================================================
+# Combined Transcription with Fallback
+# ============================================================================
+
+
+def transcribe_audio_with_fallback(
+    audio_bytes: bytes,
+    language_hint: str = None,
+    assemblyai_api_key: str = None,
+) -> Dict[str, Any]:
+    """
+    Transcribe audio using Gemini (primary) with AssemblyAI fallback.
+
+    Flow:
+    1. Try Gemini transcription first
+    2. If Gemini fails, fall back to AssemblyAI
+    3. If both fail, raise TranscriptionError
+
+    Args:
+        audio_bytes: Raw audio bytes
+        language_hint: Optional language hint
+        assemblyai_api_key: Optional AssemblyAI API key (defaults to settings)
+
+    Returns:
+        Dict with 'text', 'source' ('gemini' or 'assemblyai'), and 'metadata'
+
+    Raises:
+        TranscriptionError if all methods fail
+    """
+    errors = []
+
+    # 1. Try Gemini (primary)
+    logger.info("Attempting transcription with Gemini (primary)...")
+    try:
+        gemini_result = _transcribe_with_gemini(audio_bytes, language_hint)
+        if gemini_result:
+            return {
+                "text": gemini_result,
+                "source": "gemini",
+                "metadata": {
+                    "model": settings.GEMINI_TRANSCRIPTION_MODEL,
+                    "method": "primary",
+                },
+            }
+    except Exception as e:
+        errors.append(f"Gemini: {e}")
+        logger.warning(f"Gemini transcription failed: {e}")
+
+    # 2. Fallback to AssemblyAI
+    logger.info("Gemini failed or unavailable, falling back to AssemblyAI...")
+    api_key = assemblyai_api_key or settings.ASSEMBLYAI_API_KEY
+    if api_key:
+        try:
+            text = _transcribe_with_assemblyai_audio_bytes(audio_bytes, api_key)
+            if text:
+                return {
+                    "text": text,
+                    "source": "assemblyai",
+                    "metadata": {"method": "fallback"},
+                }
+        except Exception as e:
+            errors.append(f"AssemblyAI: {e}")
+            logger.warning(f"AssemblyAI transcription failed: {e}")
+    else:
+        errors.append("AssemblyAI: API key not configured")
+        logger.debug("AssemblyAI API key not configured, skipping fallback")
+
+    # 3. All methods failed
+    error_msg = "; ".join(errors) if errors else "No transcription method available"
+    raise TranscriptionError(f"All transcription methods failed: {error_msg}")
+
+
 class TranscriptionError(Exception):
     pass
+
 
 def _download_url(url: str, timeout: int = 120) -> bytes:
     resp = requests.get(url, timeout=timeout, stream=True)
     resp.raise_for_status()
     return resp.content
 
-def _transcribe_with_assemblyai_audio_bytes(audio_bytes: bytes, api_key: str, base_url: str = None, timeout: int = 120) -> str:
+
+def _transcribe_with_assemblyai_audio_bytes(
+    audio_bytes: bytes, api_key: str, base_url: str = None, timeout: int = 120
+) -> str:
     """
     Lightweight AssemblyAI flow:
     1) upload audio -> get upload_url
@@ -49,7 +170,9 @@ def _transcribe_with_assemblyai_audio_bytes(audio_bytes: bytes, api_key: str, ba
     upload_url = f"{base}/upload"
     try:
         # AssemblyAI supports chunked upload; do a simple upload
-        r = requests.post(upload_url, headers=headers, data=audio_bytes, timeout=timeout)
+        r = requests.post(
+            upload_url, headers=headers, data=audio_bytes, timeout=timeout
+        )
         r.raise_for_status()
         uploaded_url = r.json().get("upload_url")
         if not uploaded_url:
@@ -90,22 +213,86 @@ def _transcribe_with_assemblyai_audio_bytes(audio_bytes: bytes, api_key: str, ba
             time.sleep(2)
     raise TranscriptionError("Transcription polling timed out")
 
+
 def transcribe_recording(
     summary_row: Dict[str, Any],
     *,
     assemblyai_api_key: Optional[str] = None,
     transcribe_fn: Optional[Callable[[bytes], str]] = None,
+    use_gemini_primary: bool = True,
 ) -> Dict[str, Any]:
     """
     Attempt to obtain a transcript for a Zoom summary row.
-    - If a transcript file exists in row.recording_files, use it (VTT/TXT cleaning).
-    - Else if audio file exists and assemblyai_api_key or transcribe_fn provided, use them.
-    Returns: { "text": str, "source": "zoom_vtt"|"assemblyai"|"custom", "metadata": {...} }
+
+    Priority order:
+    1. If an audio-capable file exists:
+       a. If transcribe_fn provided: use it
+       b. If use_gemini_primary=True: Try Gemini first, then AssemblyAI as fallback
+       c. Otherwise: Use AssemblyAI directly
+    2. If a transcript file exists in row.recording_files, use it (VTT/TXT cleaning)
+
+    Returns: { "text": str, "source": "gemini"|"assemblyai"|"custom"|"zoom_vtt", "metadata": {...} }
     Raises TranscriptionError if transcription cannot be produced.
     """
     try:
         files = summary_row.get("recording_files") or summary_row.get("files") or []
-        # 1) check for native transcript file
+
+        # 1) Prefer audio-based transcription when possible
+        afile = has_audio_files(files)
+        if afile:
+            download_url = afile.get("download_url") or afile.get("url")
+            if download_url:
+                logger.debug(
+                    "Found audio file, downloading for transcription: %s", download_url
+                )
+                audio_bytes = _download_url(download_url)
+
+                # prefer a provided transcribe_fn for testability / custom providers
+                if transcribe_fn is not None:
+                    text = transcribe_fn(audio_bytes)
+                    return {
+                        "text": text,
+                        "source": "custom_fn",
+                        "metadata": {"file": afile.get("file_type")},
+                    }
+
+                # Use Gemini as primary with AssemblyAI fallback
+                if use_gemini_primary:
+                    try:
+                        result = transcribe_audio_with_fallback(
+                            audio_bytes,
+                            assemblyai_api_key=assemblyai_api_key,
+                        )
+                        result["metadata"]["file"] = afile.get("file_type")
+                        return result
+                    except TranscriptionError as e:
+                        # Log and continue to try Zoom VTT fallback below
+                        logger.warning(
+                            "Audio transcription via Gemini/AssemblyAI failed; "
+                            "will try Zoom transcript if available: %s",
+                            e,
+                        )
+
+                # Legacy: try AssemblyAI directly if key provided
+                api_key = assemblyai_api_key or settings.ASSEMBLYAI_API_KEY
+                if api_key:
+                    try:
+                        text = _transcribe_with_assemblyai_audio_bytes(
+                            audio_bytes, api_key
+                        )
+                        return {
+                            "text": text,
+                            "source": "assemblyai",
+                            "metadata": {"file": afile.get("file_type")},
+                        }
+                    except TranscriptionError as e:
+                        logger.warning(
+                            "Audio transcription via AssemblyAI failed; "
+                            "will try Zoom transcript if available: %s",
+                            e,
+                        )
+
+        # 2) Fallback: Zoom native transcript file (if present)
         tfile = has_transcript_file(files)
         if tfile:
             download_url = tfile.get("download_url") or tfile.get("url")
@@ -118,24 +305,12 @@ def transcribe_recording(
                     text = content_bytes.decode("latin-1", errors="ignore")
                 cleaned = clean_vtt_transcript(text)
                 if cleaned:
-                    return {"text": cleaned, "source": "zoom_vtt", "metadata": {"file": tfile.get("file_type")}}
-        # 2) fallback: audio file
-        afile = has_audio_files(files)
-        if afile:
-            download_url = afile.get("download_url") or afile.get("url")
-            if download_url:
-                logger.debug("Found audio file, downloading for transcription: %s", download_url)
-                audio_bytes = _download_url(download_url)
-                # prefer a provided transcribe_fn for testability / custom providers
-                if transcribe_fn is not None:
-                    text = transcribe_fn(audio_bytes)
-                    return {"text": text, "source": "custom_fn", "metadata": {"file": afile.get("file_type")}}
-                # else try AssemblyAI if key provided
-                api_key = assemblyai_api_key or settings.ASSEMBLYAI_API_KEY
-                if api_key:
-                    text = _transcribe_with_assemblyai_audio_bytes(audio_bytes, api_key)
-                    return {"text": text, "source": "assemblyai", "metadata": {"file": afile.get("file_type")}}
-                raise TranscriptionError("No transcribe function or assemblyai key provided for audio file")
+                    return {
+                        "text": cleaned,
+                        "source": "zoom_vtt",
+                        "metadata": {"file": tfile.get("file_type")},
+                    }
+
         # 3) nothing to transcribe
         raise TranscriptionError("No transcript or audio file available on summary row")
     except TranscriptionError:

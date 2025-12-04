@@ -136,70 +136,80 @@ class GamesDAO:
         Returns progress dict or None if session not found.
         """
         async with self.pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                # Lock the session row to avoid race conditions
-                await cur.execute(
-                    """
-                    SELECT 
-                        progress_current, progress_total, correct_count, incorrect_count,
-                        mastered_ids, needs_practice_ids
-                    FROM game_sessions WHERE id = %s FOR UPDATE
-                    """,
-                    (session_id,)
-                )
-                row = await cur.fetchone()
-                if not row:
-                    return None
-
-                current, total, correct, incorrect, mastered_json, needs_json = row
-
-                # Parse JSON arrays safely
-                mastered = json.loads(mastered_json) if mastered_json else []
-                needs_practice = json.loads(needs_json) if needs_json else []
-
-                # Update counters
-                new_current = min(current + 1, total)
-                new_correct = correct + (1 if is_correct else 0)
-                new_incorrect = incorrect + (0 if is_correct else 1)
-
-                # Update mastery lists deterministically
-                if is_correct:
-                    if item_id not in mastered:
-                        mastered.append(item_id)
-                    if item_id in needs_practice:
-                        needs_practice.remove(item_id)
-                else:
-                    if item_id in mastered:
-                        mastered.remove(item_id)
-                    if item_id not in needs_practice:
-                        needs_practice.append(item_id)
-
-                # Persist changes
-                await cur.execute(
-                    """
-                    UPDATE game_sessions SET
-                        progress_current = %s,
-                        correct_count = %s,
-                        incorrect_count = %s,
-                        mastered_ids = %s,
-                        needs_practice_ids = %s,
-                        updated_at = NOW()
-                    WHERE id = %s
-                    """,
-                    (
-                        new_current, new_correct, new_incorrect,
-                        json.dumps(mastered), json.dumps(needs_practice),
-                        session_id
+            try:
+                async with conn.cursor() as cur:
+                    # Lock the session row to avoid race conditions
+                    await cur.execute(
+                        """
+                        SELECT 
+                            progress_current, progress_total, correct_count, incorrect_count,
+                            mastered_ids, needs_practice_ids
+                        FROM game_sessions WHERE id = %s FOR UPDATE
+                        """,
+                        (session_id,)
                     )
-                )
-                await conn.commit()
+                    row = await cur.fetchone()
+                    if not row:
+                        # Nothing to update; ensure transaction is clean
+                        await conn.rollback()
+                        return None
 
-                return {
-                    "current": new_current,
-                    "total": total,
-                    "correct": new_correct,
-                    "incorrect": new_incorrect
-                }
+                    current, total, correct, incorrect, mastered_json, needs_json = row
+
+                    # Parse JSON arrays safely
+                    mastered = json.loads(mastered_json) if mastered_json else []
+                    needs_practice = json.loads(needs_json) if needs_json else []
+
+                    # Update counters
+                    new_current = min(current + 1, total)
+                    new_correct = correct + (1 if is_correct else 0)
+                    new_incorrect = incorrect + (0 if is_correct else 1)
+
+                    # Update mastery lists deterministically
+                    if is_correct:
+                        if item_id not in mastered:
+                            mastered.append(item_id)
+                        if item_id in needs_practice:
+                            needs_practice.remove(item_id)
+                    else:
+                        if item_id in mastered:
+                            mastered.remove(item_id)
+                        if item_id not in needs_practice:
+                            needs_practice.append(item_id)
+
+                    # Persist changes
+                    await cur.execute(
+                        """
+                        UPDATE game_sessions SET
+                            progress_current = %s,
+                            correct_count = %s,
+                            incorrect_count = %s,
+                            mastered_ids = %s,
+                            needs_practice_ids = %s,
+                            updated_at = NOW()
+                        WHERE id = %s
+                        """,
+                        (
+                            new_current, new_correct, new_incorrect,
+                            json.dumps(mastered), json.dumps(needs_practice),
+                            session_id
+                        )
+                    )
+                    await conn.commit()
+
+                    return {
+                        "current": new_current,
+                        "total": total,
+                        "correct": new_correct,
+                        "incorrect": new_incorrect
+                    }
+            except Exception:
+                try:
+                    await conn.rollback()
+                except Exception:
+                    # If rollback itself fails, we still re-raise the original error
+                    pass
+                raise
 
     async def complete_session(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Mark a session as completed and return final state; returns None if not updated."""

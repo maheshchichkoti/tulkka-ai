@@ -14,11 +14,12 @@ PASS_THRESHOLD = 7.0
 # REAL TRANSCRIPT 1: Teacher Philip - Level Test Lesson (Hobbies, Reading)
 # ============================================================================
 TRANSCRIPT_1 = """
-basmala emam: Hello? basmala emam: Hello? Khadija: Hi. basmala emam: Hi! Khadija: Mahaba. basmala emam: How would you… Khadija: Bye. basmala emam: Okay, can you open the camera, please? Khadija: Okay. basmala emam: Thank you. basmala emam: Hi, how are you? Khadija: Bye. basmala emam: Your name is Khadija, right? Khadija: Yes. basmala emam: Okay, my name is Pass now, okay? Khadija: Okay. basmala emam: Okay, so how are you? Khadija: Good, fine. basmala emam: Okay, it's great. How old are you? Khadija: enforcement. basmala emam: 14, oh, it's amazing! basmala emam: Okay, I think you already know the letters, right? Khadija: Yes. basmala emam: Yes, okay. basmala emam: So let's start. Khadija: Are you ready? Okay. basmala emam: What did you do in the morning? Khadija: I, eat breakfast. basmala emam: Before that. Khadija: Before I wake up. basmala emam: Yeah, good job. Khadija: And I brush my face. basmala emam: Good job! Khadija: Evan, where are you? Khadija: It's breakfast. basmala emam: Yeah, okay. So you, want to know more about mourning? Khadija: Yes. basmala emam: Okay, let's go. basmala emam: So now… or do you see the screen? Khadija: Yes. basmala emam: Okay. basmala emam: So now, we were talking about… Morning. basmala emam: Okay… Are you ready? So, at number one, the book is Good Morning. basmala emam: Okay, the name of the book? basmala emam: So, in the morning, we say good morning, right? Khadija: Correct. basmala emam: Okay, let's go to the next. basmala emam: So, number one, the kitchen number one, it's morning, right? Khadija: Yes. basmala emam: morning, okay? And next, we wake up, as you see, Yes. Wake up. basmala emam: Right, and then wash face… Right? basmala emam: And brushed teeth. basmala emam: Okay, you already know that, excellent. basmala emam: Okay, so she say good morning. She say good morning. basmala emam: Then, you wake up… Okay… And then? basmala emam: I wash my face, because this is my face, when I want to talk about basmala emam: saying is mine, and hagyptati, I say my. basmala emam: Right? basmala emam: I wash my face. Excellent. basmala emam: Okay, I… then I brush my teas. basmala emam: I brush my teeth. Khadija: Yeah. basmala emam: Good job! basmala emam: Next. basmala emam: Can you complete? Khadija: Good morning. basmala emam: Amazing. Khadija: Wake up. basmala emam: Yeah, good job. You know the spelling, right? Khadija: Yes. basmala emam: Okay. I… Khadija: I, wash my face, my, face. basmala emam: Yeah, excellent. Khadija: And, this, I wash my teeth. basmala emam: Not wash, brush. Khadija: Brush. basmala emam: My teeth. Khadija: Mighty, okay. basmala emam: Okay, Prash, P-R-U-S-H. Okay. Khadija: Brush my… basmala emam: Yeah, and Walsh, it's W-A-S-H, okay? basmala emam: Okay, let's go to the next. basmala emam: Okay… Khadija: Okay. basmala emam: Okay, now… Dress up, Yanni. basmala emam: What? Khadija: No, no, nothing. basmala emam: Okay, dress up, Yanni. Khadija: Urzo, Piane enlas. basmala emam: Yeah, good job. Dress up! Khadija: Dressed? basmala emam: up. Yeah, then break fast. Khadija: Yeah. basmala emam: Break first, okay? And then you go to school, right? Khadija: Yes. basmala emam: And work? Who is good to work? Khadija: And… The father… basmala emam: Yeah. basmala emam: Good job! basmala emam: Good job. Okay, so you go to school, and your dad go to work, right? Khadija: Yes. basmala emam: Okay, then, when I want to talk about myself, I say I, I dress up, Okay… basmala emam: And next, I eat breakfast. basmala emam: Yeah, where is the verb? Khadija: They eat. basmala emam: Yeah, and subject? Khadija: Breakfast. basmala emam: No, subject, el feal. Subject. Khadija: Oi. basmala emam: Yeah, do you know the subjects? Khadija: Yes, unfair. En faire. basmala emam: Yeah, good job. basmala emam: Okay, next. I… Khadija: Go to school. basmala emam: Yeah, amazing. So where is the verb? Khadija: Go. basmala emam: Amazing! basmala emam: And the subject is I, right? Khadija: Yes. basmala emam: Okay, next. basmala emam: I go to work. basmala emam: Right? Khadija: Well, the verb… basmala emam: The… Khadija: the microphone. basmala emam: Father, my father, go to work. basmala emam: Yeah. Khadija: Woof. basmala emam: Good job. Okay, now I… Khadija: Idress of… basmala emam: Amazing. Khadija: I eat breakfast. basmala emam: Good job. Khadija: I go to school… basmala emam: Okay? Yeah. Khadija: A work. basmala emam: Okay. basmala emam: So now, what we eat at the breakfast, and I'm making a forbidden photo. basmala emam: Okay? What do you eat in the breakfast? What do you eat? Khadija: Like sandwich and eggs. basmala emam: Yeah, amazing. Okay. Any… something else? Khadija: Salad? basmala emam: Yeah? Khadija: Yes. basmala emam: Okay, so, number one is sandwich. basmala emam: Sandwich. basmala emam: And Syria? Do you know Syria? Khadija: Yes. basmala emam: Okay, do you know what is this? basmala emam: Like, corn flicks. Khadija: Yes, look, please. basmala emam: Yeah, okay, and what else? Khadija: Egg. basmala emam: Yeah, good job, and… Khadija: Rise. basmala emam: And? basmala emam: And… Fruits, good job. basmala emam: Okay, now, one… the first one is… Khadija: Roads. Khadija: Rise. Khadija: Sandwich. basmala emam: Yeah? Khadija: Salad. basmala emam: Yeah? Khadija: Eggs? basmala emam: The last one? Khadija: I just know. basmala emam: Syria. Khadija: To remember. basmala emam: Serial. Khadija: Yes, seriously. basmala emam: Yeah, good job. basmala emam: I think it's too easy for you, so easy, right? Khadija: Okay. basmala emam: You can draw a line. Khadija: Eggs do… basmala emam: Yeah, you can't… you can't rule, there is a pin in the bottom of screen. Khadija: Oh, yeah. basmala emam: P… Khadija: Yeah, good job. basmala emam: Fruit, salad, yeah, amazing. basmala emam: Okay… One minute. basmala emam: Zen? basmala emam: You know, number one is… Khadija: And… right? Khadija: Nope. basmala emam: Yeah? basmala emam: Yeah, can you… Tell me what the first one is? Khadija: Rise. basmala emam: Y-yeah? Khadija: Sandwich. basmala emam: And? Khadija: Zero. basmala emam: Syria. Khadija: Yes. basmala emam: Okay, good job! basmala emam: You are very, very, very excellent. Khadija: Let's go to another lesson. basmala emam: Okay… Now, let's start with… Afternoon, okay? What are you doing in the afternoon? Khadija: And… basmala emam: Yeah. Khadija: Emm… I eat… basmala emam: Meh. basmala emam: Twat. In the morning, we eat breakfast. Khadija: In afternoon, we eat. basmala emam: Yes. What we eat what? Yeah. basmala emam: In the morning, we eat breakfast. In the morning. So, in the afternoon, what we eat basmala emam: Oh, you understand? Khadija: Unra de. basmala emam: Yeah, launch. Khadija: Lunch. basmala emam: Yeah, good job. Khadija: lunch, and… I dress up… basmala emam: Good job. basmala emam: Study. Khadija: Yes, study it, and both scanned. basmala emam: Okay, so now let's learn the new words. In afternoon. Are you ready? Khadija: Yes. basmala emam: Let's go. basmala emam: Okay, so this is a song about how grating. basmala emam: Do you know how grading? basmala emam: Oh, hello, how are you? basmala emam: Good, great, wonderful. Do you want to listen to this song? Khadija: Maybe, yes. basmala emam: Okay, let's listen to Giz. Khadija: I don't listen. basmala emam: You don't listen? Khadija: No, there are no seas… basmala emam: Sound, okay, one minute. Khadija: Yes. basmala emam: My sync now… Audio shared by basmala emam: Hello? Audio shared by basmala emam: Hello, hello, how are you? Hello? Hello? Hello, how are you? I'm good! Audio shared by basmala emam: I'm great! Audio shared by basmala emam: I'm wonderful, I'm good! Audio shared by basmala emam: I'm great I'm wonderful Hello? Audio shared by basmala emam: Hello, hello, how are you? Hello, hello, hello, how are you? I'm tired. Audio shared by basmala emam: I'm hungry! Audio shared by basmala emam: I'm not so good, I'm tired. Audio shared by basmala emam: I'm hungry! Audio shared by basmala emam: I'm not so good. Audio shared by basmala emam: Hello? Audio shared by basmala emam: Hello, hello, how are you? Hello, hello, hello, how are you? Audio shared by basmala emam: How are you? basmala emam: Okay. basmala emam: So now… How are you grading each other? basmala emam: Hello? How are you? Right? Khadija: Right. basmala emam: If you're good… Great. basmala emam: Wonderful. Khadija: Yes. basmala emam: Yeah, if you nut… How you… can you see? Khadija: Yes, yes. basmala emam: I'm tired, I'm hungry, I'm not too good, okay? If you're not good. basmala emam: You already knew that, right? Khadija: Yes. basmala emam: Okay, let's go to next. basmala emam: So… Let's go… So, in the afternoon, Afternoon, Reed. basmala emam: Okay. Watch TV. basmala emam: Or play, right? Do you love reading? Khadija: And… not too much. basmala emam: Okay, so you love podcasts? Khadija: What is BTSCAD? basmala emam: podcast is not to read. You listen to a box. Someone read it to you. basmala emam: You love that, right? Khadija: Yes. Can you tell me which podcast you listen? basmala emam: Mmm. Khadija: I don't remember what name I'll book. basmala emam: If you, if you love broadcasts, I can recommend podcasts for you. basmala emam: to improve your English. Khadija: Yes, I love that, but I don't remember what is a book I, a sound. basmala emam: Yeah, I… I can recommend. basmala emam: Okay, if you want. Khadija: Fa. basmala emam: Okay, one minute. basmala emam: You have an application podcast? basmala emam: It's the app? Khadija: No. basmala emam: Okay, no problem, you can listen from it in YouTube. basmala emam: If you want. basmala emam: There is a channel called Easy English. basmala emam: Okay, you can listen to these videos, And you will read… Khadija: What the name? basmala emam: Easy English. basmala emam: And what else? One minute. basmala emam: I love this channel so much. One minute. basmala emam: What? You say something? Khadija: No, no. basmala emam: Okay… Khadija: Is it English? What? basmala emam: Yeah, easy English. Khadija: Okay. basmala emam: Okay, and the next time, I will, collecting the channels and, tell you, okay? basmala emam: Hagamal channels? basmala emam: English, okay? Khadija: You are speaking to Wood. basmala emam: Speaking so good. Khadija: A, oof. basmala emam: Okay. Okay. basmala emam: So, in afternoon, we read. basmala emam: Write, read, watch TV, and play. basmala emam: Okay… Khadija: it. Khadija: So, next… basmala emam: Good afternoon! Like, good morning. Good afternoon, okay. basmala emam: Next, I read a book. basmala emam: Ay? Khadija: a book. basmala emam: Read a book. Khadija: Yes. basmala emam: Oh, you read a book. Yeah. Khadija: Yep. basmala emam: Can you repeat? Khadija: I read a book. basmala emam: Yeah, good job where is the verb. Khadija: Read. basmala emam: Yeah, good job. And subject… Khadija: Bye. basmala emam: Yeah, amazing. Okay, I watch TV. Khadija: I watch TV. basmala emam: Yeah, or we watch TV. We watch TV. basmala emam: Right? basmala emam: You lose the subject, right? All subjects. All of them. basmala emam: I… Khadija: Aye. basmala emam: Hit the AND… Khadija: And, we are the… basmala emam: We are they, and what else? Khadija: And… Khadija: Is, he or she like this? basmala emam: Yeah, he, she, and? Last one? basmala emam: Et, yeah, good job, amazing! basmala emam: Okay, and I… Khadija: Play a game. basmala emam: Good job. Where is the verb? Khadija: play. basmala emam: Yeah? basmala emam: So good. Khadija: Good afternoon. basmala emam: Yeah, I… Khadija: You read a book. basmala emam: Amazing. basmala emam: Ay? Khadija: I watch TV. basmala emam: And I… Khadija: I play a game. basmala emam: Yeah, good job. basmala emam: Okay, and what else we do in the afternoon? We study, yeah. Khadija: And clean, and go home. basmala emam: Yeah, back from school? basmala emam: And go home. Yeah, good job. So, I study English, like now. We study English, right? Khadija: Right. basmala emam: So I study English. Khadija: I study English. basmala emam: Yeah, and? Khadija: I eat lunch. basmala emam: Good job. basmala emam: I… Khadija: I glean thou helps. basmala emam: Yeah, amazing. basmala emam: Aye? Khadija: I go home. basmala emam: Yeah, amazing. basmala emam: Aye? Khadija: I, study English. basmala emam: Amazing. Khadija: I eat lunch. basmala emam: Launch. Khadija: Not much. basmala emam: Yeah? Khadija: I cleaned the house. basmala emam: Amazing. Khadija: You go… Like, what? basmala emam: See? Khadija: Yes. basmala emam: Yeah, good job. basmala emam: Okay, what we eat at lunch? basmala emam: Okay… Khadija: Maybe chicken? basmala emam: Yeah? Khadija: Models… basmala emam: Yeah, what's your favorite? Khadija: My favorite, chicken, maybe, or meat. basmala emam: Neat. basmala emam: Maybe something, not here? basmala emam: Hagam Shmongu tehena. Khadija: Christian, yeah. Hi, Philip. basmala emam: beads. Khadija: And… basmala emam: sushi. Khadija: Chicken. Oh, of pumpkin sushi. basmala emam: Yeah! basmala emam: Me too. Okay. basmala emam: So, number one is fish, it's easy. Chicken. Khadija: No, it does? Khadija: Just to bulls? basmala emam: Good job! Khadija: Mate. basmala emam: Yeah, amazing. basmala emam: Okay, so now, number one… Khadija: meet. Mr. Bills. Khadija: Fish. Khadija: So… Noodles and chicken. basmala emam: Good job! basmala emam: You are perfect, ready, okay. Khadija: Thank you. basmala emam: Welcome! Khadija: Damn. basmala emam: So, this is what… basmala emam: Yeah. basmala emam: Okay, you make it try it. basmala emam: Okay. basmala emam: And next… basmala emam: Yeah, amazing. basmala emam: Okay… So, we end the next lesson, too. Okay. Do you remember what we take today? Khadija: Good morning, and good afternoon. basmala emam: Yeah, do you remember what we do in the morning? Khadija: Yeah, we wake up and, wash… Khadija: My face, and wash… no, no. And, brush my teeth. basmala emam: Yeah, amazing. Khadija: And eat breakfast. basmala emam: And… Dress? basmala emam: dress up. Yeah? Khadija: Do esa… What is dursing? basmala emam: Dressing up? Khadija: Yes. basmala emam: Good job. It's present continuous, right? Khadija: Yes. And… go to school. basmala emam: Yeah… And your dad? Khadija: My dad got to work. basmala emam: Yeah, amazing. Khadija: Afternoon, we… basmala emam: We eat and the breakfast first. Khadija: Like, egg, and salad. basmala emam: Yeah? Khadija: Fruits. Sandwich. Fruits… basmala emam: Yeah, amazing. Khadija: Yes. basmala emam: Seriously. basmala emam: Okay. Khadija: Okay, and afternoon, we, we go to home, and… we… And clean the house. basmala emam: Mmm… Khadija: Let me get flaring… basmala emam: Eat lunch! Khadija: It's lunch, yes, and… basmala emam: book. Khadija: Maybe. basmala emam: Read a book. Khadija: Yes, do you read a book? basmala emam: book, study English, or something else. basmala emam: Yeah. basmala emam: What else? Play a game? Khadija: It's blank. basmala emam: Okay, you are amazing. Ready? You are amazing today. So, I will ask you something. I think you know the colors and numbers, fruits and vegetables. Khadija: Right? Khadija: Yes, but no, the O. basmala emam: What? Khadija: No, the A, the L. Khadija: Ishkulhan. basmala emam: Mshkun lil e. basmala emam: Yeah. basmala emam: Okay. basmala emam: So, we can continue in this book. basmala emam: What do you think? What's your opinion? Khadija: ist. basmala emam: Good morning, good afternoon. Good evening. basmala emam: Okay… Khadija: hello? Khadija: Yeah. basmala emam: kete. basmala emam: With a Saharadiki? Khadija: Hi, I did. basmala emam: My class, toys, family, house… Khadija: And… I have a debut far, it should be… basmala emam: Colors and numbers, fruits and vegetables, days of the week. Khadija: Great. Khadija: Maybe. Days of. basmala emam: Zoek. Khadija: Yes. basmala emam: Okay, and farm animals, shapes… Khadija: Yeah, maybe. Khadija: Okay? basmala emam: Habi Oktar. Khadija: Yup. basmala emam: Okay, Nikkammer Kebeh? Khadija: Boom. basmala emam: Okay, so I will send you your homework. basmala emam: Okay, it's so easy. Okay, it's, review. Review about we talk today. basmala emam: Okay… So, thank you so much for your time. basmala emam: Okay. basmala emam: You're welcome. See you next class. Bye-bye! Khadija: Bye-bye!
+"הלו. היי יונתן, יום טוב. יכול לדעתי טוב? כן. אוקיי, מאוד טוב, איך אתה? טוב. יופי. אז קודם כל, יונתן, לפני שהתחלנו את הלסון שלנו, יש לך אפליקציה של תולכה חדשה? אפליקציה. In your phone. You have the new one where you can see your homework, your feedbacks and schedule. You have? Okay, so that's good. All right. So we will have first a simple quiz and review. Regarding our lesson last time, אוקיי? על השיעור שלנו בעבר. All right? So let me just open our exercises. You remember our lesson last time about possessive pronouns? ואההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההה הפרטים. We will do a review, okay? So that you will remember. Okay. I think you will remember this. These are easier. Okay, so we have this one. Let's first answer this one. Okay, so you remember, Yonatan, our... Words mine, yours, his, her, ours or their. נכון, as possessive pronouns for the female or the בנות, אישה, we say her. נכון, for the males, we say his. And then for the רבים, for the plural form, we say theirs, ours, ours, or yours. So let's try this one. First read and then tell me your answer. What will be your answer? Let's start. Read first. I am riding my bike. איך. אומרים שלי? שלקה או שלק. אז אם אנחנו נקראים שלי, אוקיי, מהקהילה מי, אז זה יכול להיות קהילה או מין. שלי. מין. מין, אוקיי. אז זה יכול להיות מין. אוקיי, אז הקהילה הבסיסית היא מין. אוקיי, אסקיסימי. Are the children's books. רבים. they are So what is the plural of they? So the possessive pronoun of they, what will be? It's between a ours or theirs. So look at this here, they. So what will be the possessive pronoun of they? It's in רבים, נכון? They, hem. Okay, so how do we say their's, נכון? שלהם. יופי. Next. אוקיי. Read. That my money belongs to my retailer, which is. איך אנחנו אומרים שלו? איך אנחנו אומרים שלו? It can be Ben yours or his. His. His, נכון, because it's a brother. Okay, זה שלו. It is his. יפה. Okay, next one, number four. So we have here these for a plural. These are my sister's slippers. They are... So now it's the female version. So, because I was a sister. So, they are hem shela. So, איך אני אקנוב להם שלה in English? אז כאן, בת קלה, אנחנו אומרים, זה הוא, לבנון. אז לבנון, איך אני אומרים? הם הם או להם? הם. אז הם הוא לבנון. שלו שלו שלו שלו שלו שלו שלו שלו שלו It should be her, נכון? This is the... How do you say? יקיב? יקיב, you say, for the female? So it should be hers, okay? From the word her. It's the... We have for the brother, for the male, we say his. So the female, we say her, okay? יקיב. They are hers. Good. So next we have here number five. Can you please read? The car belongs to us. שלנו. Because us. שלנו. It is... איך אומרים שלנו? It. Should be yours, ours. It is ours. יפה. So next, number six. רואה קודם, ומאזין. מ-ד-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א-א. וויט. וויט. כמו לבן. זה הוא. אז מיסטר, זה יכול להיות... זה מלך. אתה זוכר למלך? הוא או היא? מלך. אההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההההה. נקסט 1, נמבר 7. ראית קודם. פייאר. פייאר, זוב. אוף. אוקיי, גלסס. הם הם, אז זה אי, מה זה הפרונום המנסים של אי? שילי. מין. מין, מאוד טוב. אוקיי, יפה. נמבר 8. זה הוא, עכשיו, מ-ר-ס, זה אמא, אוקיי? אמא. This is Mrs. Robinson's wheelchair. It's his. אוקיי, לבנות or female. How do you say? His or hers? From the word hers. Very good. So, wheelchair, it's the אגלה. יפה. אתה מקבל את זה עכשיו, ינתן. אז הבאה הבאה הבאה הבאה הבאה הבאה. הבאה הבאה הבאה הבאה הבאה. Belongs to me. So, like, כמו שנאמרת, זה שלי. So, what will be the answer? מין. מין, very well. Okay. The last one in our exercises. Okay. Read and answer, please. He is your מיני, כסף שלך או שלך איך אנחנו אומרים? אוקיי. יונתן יפה. All right, so that's for our possessive pronoun, okay? You remember the he's and her for male and for female. יופי, יונתן, כל הכבוד לך. All right, so let's, it should be again, so you have here. So let's proceed to our new lesson, all right? I think we can already move to our new lesson because ואתה כבר קיבלת את ה-a, ובאמת את ה-b. אז הטופיק הבא שלנו הוא לדסקריב סימפרית אבנט אוקיי כמו חברות ולמכין פלאנס ומרחבות אז בואו נתחיל בלבלת פלאנס או מרחבות עכשיו יונתן, אם אנחנו, אם אנחנו אומרים, מבחינים, אז זה, זה, זאת אומרת, זה עדיין עוד לא קורה, אוקיי? אז מה, מה, מה צריך להיות? זה, זה, זה, זה, זה, זה, זה, זה, זה, זה, זה, זה, זה, זה, זה, זה, זה, זה, זה, זה, זה, זה, זה, זה, זה, אם זה בעתיד, מה זאת אומרת? זה מעבר למהלך או למהלך? בעתיד איך נקרא עתיד באנגלית? אם אני אומר אני עושה תוכנית בעתיד. זה עדיין קורה, זה עוד לא קורה זה עדיין יהיה. עושים תוכנית. אוקיי, אז יש לנו פה, ראשון, בואו נסתכל על המספרים שלנו. אז יש לנו סקצ'ול. מה זאת אומרת סקצ'ול? יונתן, אתה יכול לבחור את הסקצ'ול שלך. In the Tulka application, so Mazzi's schedule, it's the Luwak, okay? Luwak, schedule, all right? For example, my English lesson, my schedule for English lesson is on Monday, so that's your schedule. Next we have here, can you please read the example? I have a busy schedule this week. I have a busy schedule this week. So we have here, מה זה אומר לנו? I have a busy schedule this week. I have, it means יש לי. What is the word busy? אפליקציה. באפליקציה, it's not written here, but... Busy, it means שעסוק או שיש לך מלא. Busy, עסוק. You have a very busy schedule, הלוח שלך. עסוק בשבוע הזה, אוקיי? This week. This week, שבוע הזה, השבוע. אוקיי? So next one we have the word meat. Like meat and greet. Okay? Double E, meat. Now, you have also a similar, which is meat, which is the בשר. But meat is to לראות, אוקיי? Or להכיר. נכון? אז, למשל כאן. את יכולה לראות? אני רוצה ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת... ללכת מה זה אומר לנו במשפט הזה? מה הוא רוצה לעשות? לפגש נכון. יפה יונתן. זה הזמן או שעה אוקיי. שואלים על השעה. אוקיי? So what time does your English lesson start? So it's asking for your time or your schedule. If you say time, it can also mean your schedule. Schedule, it can be the שעה, איזה שעה ואיזה תריק. יום וקודש. That's for the schedule. So the word arrive, arrive. What does it mean, arrive? I arrive in school. So arrive means... arrive is to a... לגיע, אוקיי? לא לגיע, it's a... לא לטוס, אם אתה אומר, להגיד, הגעתי. So it would be, I arrived. Now arrive. שאתם כבר, להגיד, אתם כבר בשתי מטוס. איך אומרים? נרחזתי. Just a second. היגאטי זה המסגרת הקודמת, אז ארייב זה המסגרת הקודמת, זאת אומרת להגיע, להגיע, אוקיי, להגיע. אז מסגרת המסגרת האפשרית פה, אוקיי, אפשר לראות? אני ארייב אירפורט. שתי מטוס. אוקיי, אני אגיע לשתי מטוס בשעה שלוש. אוקיי? שלוש בערב. אוקיי. זה פיים זה אחרי צהריים. שלוש אחרי צהריים. אוקיי, אז עכשיו, איך לענות על השפעה Cancel? יש לך את זה הרבה בטלפון שלך מה זאת אומרת Cancel? יש לך פה כאילו X בדרך כלל הסין הוא X Cancel, I cancelled my schedule או לפעמים אתה אומר, Proceed או Cancel מה זאת אומרת להחליט 2 אם יש לך x מה זאת אומרת אוקיי, אז כדי להחליט, יונתן, את השפעה להחליט זאת אומרת לבטל, בטל, אוקיי? בסדר? אז אם אתה אומר, אני הולך להחליט את הסקדול שלי, אז אתה הולך להחליט את זה, בזמן שלך, בלוח, איזה דבר יש לך, אוקיי? להחליט. בואו נראה את האמצעות. אפשר לדבר? I need the time to cancel the meeting because. אוקיי, אנחנו צריכים להחליט את ההגישה בגלל הרעיון. אוקיי? אז זה אומר שאנחנו צריכים לבטל את הפגישה בגלל הרעיון. מה זה? איך אומרים רעיון בערבית? שכחתי. רעיון. שיורד גשם, גשם, אוקיי? גשם. נכון. So, that's what it means to cancel. All right? So, יונתן, we still have here a more, אוצר מילים, but we are going to continue it בשיגור הבשלכה. עכשיו אני אשלח לך, I will send you a homework קודם, לראות את האוצר מילים, אוקיי? לראות את האוצר מילים, אוקיי? לראות מילים, אוקיי? את לראות האוצר את האוצר מילים, אוקיי? לראות את האוצר מילים, אוקיי? לראות את האוצר מילים, אוקיי? לראות את האוצר מילים, אוקיי? לראות את האוצר מילים, אוקיי? לראות את האוצר מילים, אוקיי? לראות את האוצר מילים, אוקיי? לראות את האוצר מיל.
 """
 
 ALL_TRANSCRIPTS = {"Philip_Hobbies": TRANSCRIPT_1}
 COMBINED_TRANSCRIPT = "\n".join([t for t in ALL_TRANSCRIPTS.values() if t])
+
 
 # -------------------------------------------------------------------
 # HELPERS
@@ -39,7 +40,11 @@ def subsection(title):
 def test_extraction():
     section("PHASE 1: EXTRACTION")
 
-    from src.ai.extractors import VocabularyExtractor, MistakeExtractor, SentenceExtractor
+    from src.ai.extractors import (
+        VocabularyExtractor,
+        MistakeExtractor,
+        SentenceExtractor,
+    )
 
     vocab_all = []
     mistakes_all = []
@@ -139,41 +144,54 @@ def test_distractor_enhancement(generation):
 
     try:
         from src.ai.enhancers import enhance_pipeline_output
-        
+
         logger.info("  Calling Groq to enhance distractors...")
         enhanced = enhance_pipeline_output(generation)
-        
+
         # Check if enhancement worked
         enhanced_count = 0
         original_synthetic = 0
-        
+
         # Check fill_blank options
         for i, item in enumerate(enhanced.get("fill_blank", [])):
             options = item.get("options", [])
             # Count synthetic-looking options (ending in 'ed', 'ing', 's' of the correct word)
             correct = item.get("correct_answer", "")
-            synthetic = [o for o in options if o != correct and (
-                o.endswith("ed") and o[:-2] == correct or
-                o.endswith("ing") and o[:-3] == correct or
-                o.endswith("s") and o[:-1] == correct or
-                "ing" in o and correct in o
-            )]
+            synthetic = [
+                o
+                for o in options
+                if o != correct
+                and (
+                    o.endswith("ed")
+                    and o[:-2] == correct
+                    or o.endswith("ing")
+                    and o[:-3] == correct
+                    or o.endswith("s")
+                    and o[:-1] == correct
+                    or "ing" in o
+                    and correct in o
+                )
+            ]
             if len(synthetic) < 2:  # Most options are now semantic
                 enhanced_count += 1
             else:
                 original_synthetic += 1
-        
-        logger.info(f"  ✓ Enhanced {enhanced_count} fill_blank items with semantic distractors")
+
+        logger.info(
+            f"  ✓ Enhanced {enhanced_count} fill_blank items with semantic distractors"
+        )
         if original_synthetic > 0:
-            logger.info(f"  ⚠ {original_synthetic} items still have synthetic distractors (fallback)")
-        
+            logger.info(
+                f"  ⚠ {original_synthetic} items still have synthetic distractors (fallback)"
+            )
+
         # Show sample of enhanced options
         if enhanced.get("fill_blank"):
             sample = enhanced["fill_blank"][0]
             logger.info(f"  Sample enhanced options: {sample.get('options', [])}")
-        
+
         return enhanced
-        
+
     except Exception as e:
         logger.warning(f"  Distractor enhancement failed: {e}")
         logger.info("  Using original generation (no enhancement)")
@@ -281,7 +299,9 @@ def score_pipeline(extraction, generation, trans_stats, schema_ok):
     schema_score = 2.0 if schema_ok else 1.0
     completeness_score = 1.0 if total_generated >= 20 else 0.5
 
-    final = extraction_score + gen_score + trans_score + schema_score + completeness_score
+    final = (
+        extraction_score + gen_score + trans_score + schema_score + completeness_score
+    )
 
     logger.info(f"TOTAL SCORE = {final:.2f}/10")
 
@@ -344,29 +364,33 @@ def main():
 
     # Phase 1: Extraction
     extraction = test_extraction()
-    
+
     # Phase 2: Generation (rule-based)
     generation = test_generation(extraction)
-    
+
     # Phase 3: Distractor Enhancement (Groq LLM call)
     enhanced_generation = test_distractor_enhancement(generation)
-    
+
     # Write enhanced output to file
     write_generation_to_file(enhanced_generation)
-    
+
     # Phase 4: Lesson Processor test
     processor = test_lesson_processor()
 
     # Phase 5: Translation quality
     translations = test_translation_quality(enhanced_generation)
-    
+
     # Phase 6: Schema validation
     schema_ok = test_schema(enhanced_generation)
-    
-    # Final scoring
-    final_score = score_pipeline(extraction, enhanced_generation, translations, schema_ok)
 
-    log_final_summary(extraction, enhanced_generation, translations, schema_ok, final_score)
+    # Final scoring
+    final_score = score_pipeline(
+        extraction, enhanced_generation, translations, schema_ok
+    )
+
+    log_final_summary(
+        extraction, enhanced_generation, translations, schema_ok, final_score
+    )
 
     return final_score
 

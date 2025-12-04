@@ -124,6 +124,114 @@ VOCABULARY_TEMPLATES: Dict[str, List[Tuple[str, str, str]]] = {
         ("Do you _____ any questions?", "have", "'Have' is used to ask about possession."),
         ("We _____ a big house.", "have", "'Have' means to own or possess."),
     ],
+    "family": [
+        ("My _____ lives in London.", "family", "People related by blood or marriage"),
+        ("We have a large _____.", "family", "Group of related people")
+    ],
+    "friend": [
+        ("She is my best _____.", "friend", "Person you know well and like"),
+        ("I met a new _____ at school.", "friend", "Someone you enjoy spending time with")
+    ],
+    "home": [
+        ("I go _____ after work.", "home", "Place where someone lives"),
+        ("Their _____ is very beautiful.", "home", "Dwelling place")
+    ],
+    "work": [
+        ("I _____ in an office.", "work", "Have a job"),
+        ("This _____ is very important.", "work", "Activity to achieve a purpose")
+    ],
+    "time": [
+        ("What _____ is it?", "time", "Measurement in hours/minutes"),
+        ("I need more _____ to finish.", "time", "Duration available")
+    ],
+    "water": [
+        ("Can I have some _____?", "water", "Clear liquid essential for life"),
+        ("The _____ is too cold to swim.", "water", "Liquid form of H2O")
+    ],
+    "food": [
+        ("I need to buy _____ for dinner.", "food", "Substance eaten for nutrition"),
+        ("This _____ tastes delicious.", "food", "Edible substance")
+    ],
+    "money": [
+        ("I need more _____ to buy this.", "money", "Medium of exchange"),
+        ("She saves _____ every month.", "money", "Currency or funds")
+    ],
+    "day": [
+        ("Have a good _____!", "day", "24-hour period"),
+        ("What a beautiful _____!", "day", "Daytime period")
+    ],
+    "year": [
+        ("Next _____ I will travel.", "year", "365-day period"),
+        ("This _____ has been amazing.", "year", "Calendar year")
+    ],
+    "people": [
+        ("Many _____ came to the party.", "people", "Human beings"),
+        ("These _____ are very friendly.", "people", "Group of individuals")
+    ],
+    "city": [
+        ("New York is a big _____.", "city", "Large urban area"),
+        ("I live in a small _____.", "city", "Municipal area")
+    ],
+    "country": [
+        ("Israel is my favorite _____.", "country", "Sovereign nation"),
+        ("Which _____ do you want to visit?", "country", "Geopolitical entity")
+    ],
+    "problem": [
+        ("We need to solve this _____.", "problem", "Difficult situation"),
+        ("The main _____ is communication.", "problem", "Issue or challenge")
+    ],
+    "question": [
+        ("Do you have a _____?", "question", "Inquiry or query"),
+        ("This _____ is very difficult.", "question", "Problem to be solved")
+    ],
+    "answer": [
+        ("I know the _____!", "answer", "Response to a question"),
+        ("Please give me an _____.", "answer", "Solution or reply")
+    ],
+    "child": [
+        ("The _____ is playing outside.", "child", "Young human"),
+        ("She has one _____.", "child", "Offspring")
+    ],
+    "parent": [
+        ("My _____ lives nearby.", "parent", "Mother or father"),
+        ("She is a single _____.", "parent", "Person raising children")
+    ],
+    "teacher": [
+        ("The _____ explains the lesson.", "teacher", "Educator"),
+        ("My _____ is very helpful.", "teacher", "Instructor")
+    ],
+    "student": [
+        ("Every _____ has a book.", "student", "Learner"),
+        ("He is a good _____.", "student", "Person studying")
+    ],
+    "job": [
+        ("I need a new _____.", "job", "Employment position"),
+        ("What is your _____?", "job", "Occupation")
+    ],
+    "health": [
+        ("Exercise is good for your _____.", "health", "Physical condition"),
+        ("Her _____ is improving.", "health", "Well-being")
+    ],
+    "weather": [
+        ("The _____ is beautiful today.", "weather", "Atmospheric conditions"),
+        ("How's the _____?", "weather", "Current climate")
+    ],
+    "world": [
+        ("We live in a big _____.", "world", "Planet Earth"),
+        ("Travel around the _____.", "world", "Global sphere")
+    ],
+    "life": [
+        ("Enjoy your _____!", "life", "Existence"),
+        ("This is the best _____ ever!", "life", "Personal experience")
+    ],
+    "understand": [
+        ("Do you _____ the question?", "understand", "Comprehend meaning"),
+        ("I don't _____ this lesson.", "understand", "Grasp information")
+    ],
+    "important": [
+        ("This is very _____.", "important", "Having great significance"),
+        ("Sleep is _____ for health.", "important", "Crucial or essential")
+    ]
 }
 
 # Fallback templates for words not in the vocabulary list
@@ -179,6 +287,7 @@ def generate_fill_blank(
     """
     out: List[Dict[str, Any]] = []
     used_words: Set[str] = set()
+    generic_used = 0
     
     # Get vocabulary from input
     input_vocab = _get_vocab_from_input(mistakes, transcript)
@@ -237,5 +346,33 @@ def generate_fill_blank(
             "hint": "Choose the word that best completes the sentence.",
             "concept": "vocabulary"
         })
+    
+    # Priority 3: Fill remaining slots with generic templates
+    while len(out) < limit:
+        template = random.choice(GENERIC_TEMPLATES)
+        sentence_template, blank_position, concept, explanation_template = template
+        
+        # Replace blank with a random word
+        sentence = sentence_template.replace("_____",
+                                             random.choice(["apple", "dog", "run", "big", "happy"]))
+        
+        # Create options
+        options = _build_options_for_target(random.choice(["apple", "dog", "run", "big", "happy"]))
+        
+        out.append({
+            "id": str(uuid.uuid4()),
+            "sentence": sentence,
+            "options": options,
+            "correct_answer": random.choice(options),
+            "difficulty": _assess_difficulty(random.choice(options)),
+            "source_mistake": "generic_template",
+            "explanation": explanation_template,
+            "hint": "Choose the word that best completes the sentence.",
+            "concept": concept
+        })
+        generic_used += 1
+    
+    if generic_used > 0:
+        logger.info(f"Generated {generic_used} fallback fill_blank items")
     
     return out[:limit]

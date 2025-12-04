@@ -1,380 +1,378 @@
 {
   "flashcards": [
     {
-      "id": "7e17e9cb-f32d-4991-9177-e33d104e4139",
-      "word": "open",
-      "translation": "לִפְתוֹחַ",
-      "example_sentence": "Can you open the window, please?",
+      "id": "42477a16-cf61-4cbd-8404-a218b6e42f6d",
+      "word": "your",
+      "translation": "שֶׁלְךָ",
+      "example_sentence": "You have the new one where you can see your homework, your feedbacks and schedule.",
       "difficulty": "beginner",
       "source": "content_word",
       "hint": "Word from lesson (content_word)"
     },
     {
-      "id": "d07feb30-bbc9-40c1-8db1-1cdceeaae3e1",
-      "word": "camera",
-      "translation": "מַצלֵמָה",
-      "example_sentence": "I need to turn on my camera for the video call.",
-      "difficulty": "beginner",
-      "source": "content_word",
-      "hint": "Word from lesson (content_word)"
-    },
-    {
-      "id": "d8c5c818-0c13-453f-b564-ae528f2dfddc",
-      "word": "please",
-      "translation": "בבקשה",
-      "example_sentence": "Could you help me with this, please?",
-      "difficulty": "beginner",
-      "source": "content_word",
-      "hint": "Word from lesson (content_word)"
-    },
-    {
-      "id": "f2ee7112-6149-4492-883d-2201e9114ad3",
-      "word": "name",
-      "translation": "שֵׁם",
-      "example_sentence": "What is your name?",
-      "difficulty": "beginner",
-      "source": "content_word",
-      "hint": "Word from lesson (content_word)"
-    },
-    {
-      "id": "2a324446-95c1-4947-8d4e-cb30f43e495f",
-      "word": "fine",
-      "translation": "בסדר",
-      "example_sentence": "How are you? I'm fine, thank you.",
-      "difficulty": "beginner",
-      "source": "content_word",
-      "hint": "Word from lesson (content_word)"
-    },
-    {
-      "id": "3a7f9f15-7aaa-4827-b58c-6193941fa9bd",
-      "word": "great",
-      "translation": "מצוין",
-      "example_sentence": "That's a great idea!",
-      "difficulty": "beginner",
-      "source": "content_word",
-      "hint": "Word from lesson (content_word)"
-    },
-    {
-      "id": "0e147b0a-30ad-48ab-b1a6-8dd57b728148",
-      "word": "amazing",
-      "translation": "מדהים",
-      "example_sentence": "The view from here is amazing.",
+      "id": "f6c89044-4d6a-4f1f-89df-1755836c0751",
+      "word": "phone",
+      "translation": "טֵלֵפוֹן",
+      "example_sentence": "I use the word 'phone' in my English class.",
       "difficulty": "intermediate",
       "source": "content_word",
       "hint": "Word from lesson (content_word)"
     },
     {
-      "id": "d053ff2b-9985-40d6-8627-cb581622098f",
-      "word": "think",
-      "translation": "לַחשׁוֹב",
-      "example_sentence": "I think this is the right answer.",
+      "id": "c3461998-3109-49e4-9795-74da5fd580d8",
+      "word": "where",
+      "translation": "אֵיפֹה",
+      "example_sentence": "You have the new one where you can see your homework, your feedbacks and schedule.",
       "difficulty": "intermediate",
+      "source": "content_word",
+      "hint": "Word from lesson (content_word)"
+    },
+    {
+      "id": "3b202306-ab02-4f93-9c27-11d44f82a049",
+      "word": "homework",
+      "translation": "שִׁעוּרֵי בַּיִת",
+      "example_sentence": "You have the new one where you can see your homework, your feedbacks and schedule.",
+      "difficulty": "advanced",
+      "source": "content_word",
+      "hint": "Word from lesson (content_word)"
+    },
+    {
+      "id": "94640d18-def2-4d4f-9f0a-20462450061d",
+      "word": "feedbacks",
+      "translation": "משוב",
+      "example_sentence": "You have the new one where you can see your homework, your feedbacks and schedule.",
+      "difficulty": "advanced",
+      "source": "content_word",
+      "hint": "Word from lesson (content_word)"
+    },
+    {
+      "id": "89a37005-0de8-49fc-8e16-d7affb1e7200",
+      "word": "schedule",
+      "translation": "לוּחַ זְמַנִים",
+      "example_sentence": "You have the new one where you can see your homework, your feedbacks and schedule.",
+      "difficulty": "advanced",
+      "source": "content_word",
+      "hint": "Word from lesson (content_word)"
+    },
+    {
+      "id": "76e26fa0-e126-4c6f-8579-ecbcd86a32e3",
+      "word": "that's",
+      "translation": "זהו",
+      "example_sentence": "All right, so that's for our possessive pronoun, okay?",
+      "difficulty": "intermediate",
+      "source": "content_word",
+      "hint": "Word from lesson (content_word)"
+    },
+    {
+      "id": "9c68d129-f397-4c45-bc9b-aa35f6bc86c2",
+      "word": "good",
+      "translation": "טוֹב",
+      "example_sentence": "This is a good book.",
+      "difficulty": "beginner",
       "source": "content_word",
       "hint": "Word from lesson (content_word)"
     }
   ],
   "spelling": [
     {
-      "id": "bf8ed150-8651-47a8-a3fb-fa03e912db6c",
-      "word": "open",
-      "translation": "לִפְתוֹחַ",
-      "hint": "לִפְתוֹחַ",
+      "id": "67fda2c0-a33f-4fb8-b266-d4f4de8851af",
+      "word": "your",
+      "translation": "שֶׁלְךָ",
+      "hint": "שֶׁלְךָ",
       "difficulty": "beginner",
       "source": "content_word",
-      "sample_sentence": "Can you open the window, please?"
+      "sample_sentence": "You have the new one where you can see your homework, your feedbacks and schedule."
     },
     {
-      "id": "47e472fd-a46a-460d-a22a-ece36b430745",
-      "word": "camera",
-      "translation": "מַצלֵמָה",
-      "hint": "מַצלֵמָה",
-      "difficulty": "beginner",
-      "source": "content_word",
-      "sample_sentence": "I need to turn on my camera for the video call."
-    },
-    {
-      "id": "3e542163-df81-4465-b6d1-802166770efc",
-      "word": "please",
-      "translation": "בבקשה",
-      "hint": "בבקשה",
-      "difficulty": "beginner",
-      "source": "content_word",
-      "sample_sentence": "Could you help me with this, please?"
-    },
-    {
-      "id": "a3de1e85-7acc-4481-8d0e-c23604d13beb",
-      "word": "name",
-      "translation": "שֵׁם",
-      "hint": "שֵׁם",
-      "difficulty": "beginner",
-      "source": "content_word",
-      "sample_sentence": "What is your name?"
-    },
-    {
-      "id": "6fef8d20-53f6-44c4-a46e-6c1ce1de888a",
-      "word": "fine",
-      "translation": "בסדר",
-      "hint": "בסדר",
-      "difficulty": "beginner",
-      "source": "content_word",
-      "sample_sentence": "How are you? I'm fine, thank you."
-    },
-    {
-      "id": "d7fd293c-2316-4ca0-930b-0296305ca964",
-      "word": "great",
-      "translation": "מצוין",
-      "hint": "מצוין",
-      "difficulty": "beginner",
-      "source": "content_word",
-      "sample_sentence": "That's a great idea!"
-    },
-    {
-      "id": "3fa02904-5b0f-41cb-8d1f-74cd9ee39d1b",
-      "word": "amazing",
-      "translation": "מדהים",
-      "hint": "מדהים",
+      "id": "770662f9-b7cc-42af-9ae8-54cd9a4400eb",
+      "word": "phone",
+      "translation": "טֵלֵפוֹן",
+      "hint": "טֵלֵפוֹן",
       "difficulty": "intermediate",
       "source": "content_word",
-      "sample_sentence": "The view from here is amazing."
+      "sample_sentence": "Can you spell the word 'phone'?"
     },
     {
-      "id": "66d4a564-a80e-40f6-92a1-2ead5049a95c",
-      "word": "think",
-      "translation": "לַחשׁוֹב",
-      "hint": "לַחשׁוֹב",
+      "id": "c1eb15a3-1385-4fd5-a960-ef15298e9eee",
+      "word": "where",
+      "translation": "אֵיפֹה",
+      "hint": "אֵיפֹה",
       "difficulty": "intermediate",
       "source": "content_word",
-      "sample_sentence": "I think this is the right answer."
+      "sample_sentence": "You have the new one where you can see your homework, your feedbacks and schedule."
+    },
+    {
+      "id": "f6c54b68-5793-42af-827c-8a7e81638cd7",
+      "word": "homework",
+      "translation": "שִׁעוּרֵי בַּיִת",
+      "hint": "שִׁעוּרֵי בַּיִת",
+      "difficulty": "advanced",
+      "source": "content_word",
+      "sample_sentence": "You have the new one where you can see your homework, your feedbacks and schedule."
+    },
+    {
+      "id": "387cbf25-1538-406d-b2e9-94f0f7de691c",
+      "word": "feedbacks",
+      "translation": "משוב",
+      "hint": "משוב",
+      "difficulty": "advanced",
+      "source": "content_word",
+      "sample_sentence": "You have the new one where you can see your homework, your feedbacks and schedule."
+    },
+    {
+      "id": "374f4c91-8e92-45e9-81b4-47b88329e6dd",
+      "word": "schedule",
+      "translation": "לוּחַ זְמַנִים",
+      "hint": "לוּחַ זְמַנִים",
+      "difficulty": "advanced",
+      "source": "content_word",
+      "sample_sentence": "You have the new one where you can see your homework, your feedbacks and schedule."
+    },
+    {
+      "id": "00427a6a-c66b-41f2-84a4-d6a5564a0d8a",
+      "word": "that's",
+      "translation": "זהו",
+      "hint": "זהו",
+      "difficulty": "intermediate",
+      "source": "content_word",
+      "sample_sentence": "All right, so that's for our possessive pronoun, okay?"
+    },
+    {
+      "id": "263743f2-cc19-488c-a13e-9640047fe2e5",
+      "word": "good",
+      "translation": "טוֹב",
+      "hint": "טוֹב",
+      "difficulty": "beginner",
+      "source": "content_word",
+      "sample_sentence": "This is a good book."
     }
   ],
   "fill_blank": [
     {
-      "id": "f252c8e1-2f08-4f92-8f4f-95009abebccb",
-      "sentence": "The _____ on my phone takes great pictures.",
+      "id": "036935a6-8be0-48c6-a6f7-9c388ea81c05",
+      "sentence": "She saves _____ every month.",
       "options": [
-        "lens",
-        "screen",
-        "camera",
-        "microphone"
+        "wealth",
+        "money",
+        "savings",
+        "assets"
       ],
-      "correct_answer": "camera",
+      "correct_answer": "money",
+      "difficulty": "intermediate",
+      "source_mistake": "vocabulary_template",
+      "explanation": "Currency or funds",
+      "hint": "Choose the word that best completes the sentence.",
+      "concept": "vocabulary"
+    },
+    {
+      "id": "99f74d0d-c328-4a36-8dcd-f408dae0d04d",
+      "sentence": "Let me _____ about it for a moment.",
+      "options": [
+        "ponder",
+        "think",
+        "reflect",
+        "consider"
+      ],
+      "correct_answer": "think",
+      "difficulty": "intermediate",
+      "source_mistake": "vocabulary_template",
+      "explanation": "'Think' means to consider something.",
+      "hint": "Choose the word that best completes the sentence.",
+      "concept": "vocabulary"
+    },
+    {
+      "id": "f465d391-ce7a-47e3-be2e-d2636827b455",
+      "sentence": "We _____ a big house.",
+      "options": [
+        "own",
+        "have",
+        "possess",
+        "occupy"
+      ],
+      "correct_answer": "have",
       "difficulty": "beginner",
       "source_mistake": "vocabulary_template",
-      "explanation": "Phones have built-in cameras for photography.",
+      "explanation": "'Have' means to own or possess.",
       "hint": "Choose the word that best completes the sentence.",
       "concept": "vocabulary"
     },
     {
-      "id": "8728b60f-20cd-42c1-8a0e-241ce0cd8ddf",
-      "sentence": "_____ pass me the salt.",
+      "id": "00bc27db-e5a3-4e9f-bf82-3f87ad8ac5d3",
+      "sentence": "Please _____ the door.",
       "options": [
-        "Thanks",
-        "Please",
-        "Kindly",
-        "Nice"
+        "unlock",
+        "open",
+        "close",
+        "shut"
       ],
-      "correct_answer": "Please",
+      "correct_answer": "open",
       "difficulty": "beginner",
       "source_mistake": "vocabulary_template",
-      "explanation": "Start requests with 'please' to be polite.",
+      "explanation": "Use 'open' to describe making something accessible.",
       "hint": "Choose the word that best completes the sentence.",
       "concept": "vocabulary"
     },
     {
-      "id": "5ca140ce-529c-4a74-a84b-bd7627bb3103",
-      "sentence": "The alphabet has 26 _____s.",
+      "id": "b30ed2d2-ef03-4536-ab23-e05458d10ef4",
+      "sentence": "Could you help me, _____?",
       "options": [
-        "letter",
-        "letters",
-        "numbers",
-        "characters"
+        "kindly",
+        "please",
+        "thanks",
+        "appreciate"
       ],
-      "correct_answer": "letter",
-      "difficulty": "intermediate",
-      "source_mistake": "vocabulary_template",
-      "explanation": "A 'letter' is a character in the alphabet.",
-      "hint": "Choose the word that best completes the sentence.",
-      "concept": "vocabulary"
-    },
-    {
-      "id": "c9d0df3a-2afb-4b22-97ab-f1f5a938d518",
-      "sentence": "You did a _____ job on your homework.",
-      "options": [
-        "good",
-        "great",
-        "excellent",
-        "fine"
-      ],
-      "correct_answer": "great",
+      "correct_answer": "please",
       "difficulty": "beginner",
       "source_mistake": "vocabulary_template",
-      "explanation": "'Great' is used to praise good work.",
+      "explanation": "'Please' is used to make polite requests.",
       "hint": "Choose the word that best completes the sentence.",
       "concept": "vocabulary"
     },
     {
-      "id": "91998424-47b6-4340-8d89-7a142d3db4b9",
-      "sentence": "They _____ know the answer.",
+      "id": "cdc2f7cb-9fb0-4bdc-ab32-3c3e8ce27ab9",
+      "sentence": "Where do you want to _____?",
       "options": [
-        "still",
-        "already",
-        "yet",
-        "soon"
+        "travel",
+        "go",
+        "visit",
+        "journey"
       ],
-      "correct_answer": "already",
-      "difficulty": "intermediate",
+      "correct_answer": "go",
+      "difficulty": "beginner",
       "source_mistake": "vocabulary_template",
-      "explanation": "'Already' emphasizes something happened earlier.",
+      "explanation": "'Go' is used for traveling or moving.",
       "hint": "Choose the word that best completes the sentence.",
       "concept": "vocabulary"
     },
     {
-      "id": "c17f8a8c-e7eb-4cf7-86f7-8ef51e2a71f1",
-      "sentence": "Good _____! How did you sleep?",
+      "id": "656cdc4d-1853-48cd-8d65-df22d115ae12",
+      "sentence": "Their _____ is very beautiful.",
       "options": [
-        "afternoon",
-        "evening",
-        "night",
-        "morning"
+        "house",
+        "home",
+        "apartment",
+        "residence"
       ],
-      "correct_answer": "morning",
-      "difficulty": "intermediate",
+      "correct_answer": "home",
+      "difficulty": "beginner",
       "source_mistake": "vocabulary_template",
-      "explanation": "We greet people with 'Good morning'.",
+      "explanation": "Dwelling place",
       "hint": "Choose the word that best completes the sentence.",
       "concept": "vocabulary"
     },
     {
-      "id": "f3f14dd0-bd64-4262-98af-1fe387cc236f",
-      "sentence": "That magic trick was _____!",
+      "id": "894cbbf3-831c-46ab-acbc-abde066e7d13",
+      "sentence": "I'm reading an interesting _____.",
       "options": [
-        "awesome",
-        "amazing",
-        "incredible",
-        "unbelievable"
+        "magazine",
+        "book",
+        "novel",
+        "article"
       ],
-      "correct_answer": "amazing",
-      "difficulty": "intermediate",
+      "correct_answer": "book",
+      "difficulty": "beginner",
       "source_mistake": "vocabulary_template",
-      "explanation": "'Amazing' expresses wonder or surprise.",
-      "hint": "Choose the word that best completes the sentence.",
-      "concept": "vocabulary"
-    },
-    {
-      "id": "7eb86119-efe5-4917-bd5f-926384e1f9f0",
-      "sentence": "What time does the movie _____?",
-      "options": [
-        "start",
-        "begins",
-        "starts",
-        "finishes"
-      ],
-      "correct_answer": "start",
-      "difficulty": "intermediate",
-      "source_mistake": "vocabulary_template",
-      "explanation": "'Start' indicates when something begins.",
+      "explanation": "A 'book' is a written work with pages.",
       "hint": "Choose the word that best completes the sentence.",
       "concept": "vocabulary"
     }
   ],
   "sentence_builder": [
     {
-      "id": "16861f83-8251-48ea-b66f-a314cd2ed678",
-      "english": "Can you open the camera, please?",
+      "id": "4166ed42-77f8-4704-a069-5fb449f488aa",
+      "english": "Regarding our lesson last time, אוקיי.",
       "tokens": [
-        "Can",
-        "you",
-        "open",
-        "the",
-        "camera",
+        "Regarding",
+        "our",
+        "lesson",
+        "last",
+        "time",
         ",",
-        "please",
-        "?"
-      ],
-      "accepted": [
-        [
-          "Can",
-          "you",
-          "open",
-          "the",
-          "camera",
-          ",",
-          "please",
-          "?"
-        ]
-      ],
-      "translation": "אתה יכול לפתוח את המצלמה בבקשה?",
-      "hint": "Rebuild the sentence in the correct order.",
-      "difficulty": "intermediate"
-    },
-    {
-      "id": "5cc22918-6e07-47dc-a156-78d08aa6e1f9",
-      "english": "I think you already know the letters.",
-      "tokens": [
-        "I",
-        "think",
-        "you",
-        "already",
-        "know",
-        "the",
-        "letters",
         "."
       ],
       "accepted": [
         [
-          "I",
-          "think",
-          "you",
-          "already",
-          "know",
-          "the",
-          "letters",
+          "Regarding",
+          "our",
+          "lesson",
+          "last",
+          "time",
+          ",",
           "."
         ]
       ],
-      "translation": "אני חושב שאתה כבר יודע את האותיות.",
+      "translation": "לגבי השיעור שלנו בפעם הקודמת, אוקיי.",
       "hint": "Rebuild the sentence in the correct order.",
       "difficulty": "intermediate"
     },
     {
-      "id": "47617c3f-21bf-4ef6-9924-ff81bc7b0a3b",
-      "english": "What did you do in the morning?",
+      "id": "7603ac67-1de0-428b-b8f7-83323ee803af",
+      "english": "You remember our lesson last time about possessive pronouns.",
       "tokens": [
-        "What",
-        "did",
-        "you",
-        "do",
-        "in",
-        "the",
-        "morning",
-        "?"
+        "You",
+        "remember",
+        "our",
+        "lesson",
+        "last",
+        "time",
+        "about",
+        "possessive",
+        "pronouns",
+        "."
       ],
       "accepted": [
         [
-          "What",
-          "did",
-          "you",
-          "do",
-          "in",
-          "the",
-          "morning",
-          "?"
+          "You",
+          "remember",
+          "our",
+          "lesson",
+          "last",
+          "time",
+          "about",
+          "possessive",
+          "pronouns",
+          "."
         ]
       ],
-      "translation": "מה עשית בבוקר?",
+      "translation": "אתה זוכר את השיעור שלנו בפעם הקודמת על כינויים רכושניים.",
+      "hint": "Rebuild the sentence in the correct order.",
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "0e0cb107-7d4c-4c60-8c5a-a8bbc91d2c6f",
+      "english": "We will do a review.",
+      "tokens": [
+        "We",
+        "will",
+        "do",
+        "a",
+        "review",
+        "."
+      ],
+      "accepted": [
+        [
+          "We",
+          "will",
+          "do",
+          "a",
+          "review",
+          "."
+        ]
+      ],
+      "translation": "אנחנו נעשה סקירה.",
       "hint": "Rebuild the sentence in the correct order.",
       "difficulty": "beginner"
     }
   ],
   "grammar_challenge": [
     {
-      "id": "61805be1-1e10-44b8-a062-367410a61ead",
+      "id": "08cd278c-3122-4123-a835-3d5e8121fa2b",
       "prompt": "She ____ to school every day.",
       "options": [
         "walks",
-        "runs",
         "drives",
-        "goes"
+        "goes",
+        "rides"
       ],
       "correct_answer": "goes",
       "explanation": "Correct form is 'goes'.",
@@ -384,7 +382,7 @@
       "source_mistake": "auto_template"
     },
     {
-      "id": "fb3d2789-b2ef-43e2-a085-8e646c2e3288",
+      "id": "f624125d-618a-48d1-a726-524d13c047b8",
       "prompt": "They ____ the book every week.",
       "options": [
         "write",
@@ -400,13 +398,13 @@
       "source_mistake": "auto_template"
     },
     {
-      "id": "f7967b71-5db6-4e64-a2a0-961eba4d0874",
+      "id": "4aff41fb-1366-43af-af9e-1eb7773e5285",
       "prompt": "I ____ an apple for breakfast.",
       "options": [
         "drink",
         "eat",
-        "take",
-        "have"
+        "taste",
+        "dine"
       ],
       "correct_answer": "eat",
       "explanation": "Correct form is 'eat'.",
@@ -418,57 +416,57 @@
   ],
   "advanced_cloze": [
     {
-      "id": "8f23660d-27a4-4524-8eb6-2448aff0b395",
-      "sentence": "can you _____ the _____, please.",
+      "id": "2c47e81e-8ebd-4edd-9bc9-ad7e03c3d568",
+      "sentence": "You _____ the new one where you can see _____ homework, your feedbacks and schedule.",
       "blank1": {
         "options": [
-          "close",
-          "lock",
-          "open",
-          "shut"
+          "get",
+          "have",
+          "use",
+          "access"
         ],
-        "correct": "open",
+        "correct": "have",
         "hint": "Consider the grammar and meaning of blank 1."
       },
       "blank2": {
         "options": [
-          "phone",
-          "computer",
-          "camera",
-          "television"
+          "my",
+          "your",
+          "our",
+          "their"
         ],
-        "correct": "camera",
+        "correct": "your",
         "hint": "Consider the grammar and meaning of blank 2."
       },
       "difficulty": "intermediate",
-      "source_sentence": "can you open the camera, please.",
+      "source_sentence": "You have the new one where you can see your homework, your feedbacks and schedule.",
       "concept": "advanced_cloze"
     },
     {
-      "id": "c576c280-1eb4-4791-a8e1-c61302522ee4",
-      "sentence": "I _____ you already _____ the letters.",
+      "id": "4e0c5afe-e4f1-4385-b8e0-f38006193d44",
+      "sentence": "Regarding our _____ _____ time, אוקיי.",
       "blank1": {
         "options": [
-          "hope",
-          "think",
-          "believe",
-          "wish"
+          "class",
+          "lesson",
+          "course",
+          "tutorial"
         ],
-        "correct": "think",
+        "correct": "lesson",
         "hint": "Consider the grammar and meaning of blank 1."
       },
       "blank2": {
         "options": [
-          "sent",
-          "wrote",
-          "know",
-          "received"
+          "next",
+          "last",
+          "previous",
+          "final"
         ],
-        "correct": "know",
+        "correct": "last",
         "hint": "Consider the grammar and meaning of blank 2."
       },
       "difficulty": "intermediate",
-      "source_sentence": "I think you already know the letters.",
+      "source_sentence": "Regarding our lesson last time, אוקיי.",
       "concept": "advanced_cloze"
     }
   ]
