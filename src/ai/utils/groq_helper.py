@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------
 try:
     from groq import Groq
+
     GROQ_AVAILABLE = True
 except Exception as e:  # pragma: no cover - diagnostic logging
     # Log the actual import failure so we can debug configuration issues
@@ -34,8 +35,10 @@ except Exception as e:  # pragma: no cover - diagnostic logging
     Groq = None  # type: ignore
     GROQ_AVAILABLE = False
 
+
 class GroqClient:
     """Minimal safe wrapper for Groq chat completions."""
+
     def __init__(self, model: Optional[str] = None):
         self.api_key = os.getenv("GROQ_API_KEY")
         self.model = model or os.getenv("GROQ_MODEL", "llama3-70b-8192")
@@ -52,11 +55,14 @@ class GroqClient:
         try:
             self.client = Groq(api_key=self.api_key)
         except Exception as e:
-            logger.exception("Groq init failed:", e)
+            # Log the exception cleanly without causing a formatting error
+            logger.exception("Groq init failed: %s", e)
             self.enabled = False
             self.client = None
 
-    def chat(self, system_prompt, user_prompt, temperature=0.2, max_tokens=1200) -> Optional[str]:
+    def chat(
+        self, system_prompt, user_prompt, temperature=0.2, max_tokens=1200
+    ) -> Optional[str]:
         if not self.enabled or not self.client:
             return None
 
@@ -74,10 +80,9 @@ class GroqClient:
                 return None
 
             choice = resp.choices[0]
-            return (
-                getattr(getattr(choice, "message", None), "content", None)
-                or getattr(choice, "content", None)
-            )
+            return getattr(
+                getattr(choice, "message", None), "content", None
+            ) or getattr(choice, "content", None)
         except Exception as exc:
             msg = str(exc)
             if "429" in msg or "rate limit" in msg.lower():
@@ -92,6 +97,7 @@ class GroqClient:
 # ---------------------------
 
 _JSON_RE = re.compile(r"(\{.*\}|\[.*\])", flags=re.DOTALL)
+
 
 def _parse_ai_json(text: str) -> Optional[Any]:
     if not text:
@@ -116,6 +122,7 @@ def _parse_ai_json(text: str) -> Optional[Any]:
 # Transcript trimming
 # ---------------------------
 
+
 def trim_transcript(text: str, max_chars: int = 4000) -> str:
     if not text:
         return ""
@@ -123,18 +130,20 @@ def trim_transcript(text: str, max_chars: int = 4000) -> str:
     if len(t) <= max_chars:
         return t
     start = (len(t) // 2) - (max_chars // 2)
-    return t[start:start + max_chars]
+    return t[start : start + max_chars]
 
 
 # ---------------------------
 # Translation fallback helper
 # ---------------------------
 
+
 def _build_translator_fallback(target="he"):
     """Unified translator fallback."""
     # Try importing your generator translator:
     try:
         from ..generators import _translator
+
         return _translator(target)
     except Exception:
         pass
@@ -142,6 +151,7 @@ def _build_translator_fallback(target="he"):
     # Deep-translator fallback
     try:
         from deep_translator import GoogleTranslator
+
         lang = "iw" if target == "he" else target
         return GoogleTranslator(source="en", target=lang)
     except Exception:
@@ -161,6 +171,7 @@ def _translate_word(word: str, translator) -> str:
 # 1) Mistakes + Grammar
 # ---------------------------
 
+
 class GroqMistakeGrammarExtractor:
     """Groq call #1 — mistakes + grammar rules"""
 
@@ -176,10 +187,15 @@ class GroqMistakeGrammarExtractor:
         if not self.enabled:
             logger.info("Groq disabled → heuristic fallback.")
             from ..extractors import MistakeExtractor
+
             me = MistakeExtractor()
             mistakes = me.extract(transcript)
             grammar_points = [
-                {"rule": m.get("rule", ""), "example": m.get("correct", ""), "hebrew": ""}
+                {
+                    "rule": m.get("rule", ""),
+                    "example": m.get("correct", ""),
+                    "hebrew": "",
+                }
                 for m in mistakes
             ]
             return {
@@ -231,17 +247,19 @@ No extra text.
         for m in parsed.get("mistakes", []) or []:
             inc = (m.get("incorrect") or "").strip()
             cor = (m.get("correct") or "").strip()
-            typ = (m.get("type") or "grammar_general")
-            rule = (m.get("rule") or "")
-            ctx = (m.get("context") or "")
+            typ = m.get("type") or "grammar_general"
+            rule = m.get("rule") or ""
+            ctx = m.get("context") or ""
             if inc and cor:
-                mistakes.append({
-                    "incorrect": inc,
-                    "correct": cor,
-                    "type": typ,
-                    "rule": rule,
-                    "context": ctx,
-                })
+                mistakes.append(
+                    {
+                        "incorrect": inc,
+                        "correct": cor,
+                        "type": typ,
+                        "rule": rule,
+                        "context": ctx,
+                    }
+                )
             if len(mistakes) >= max_mistakes:
                 break
 
@@ -261,6 +279,7 @@ No extra text.
 # 2) Vocab + Sentences
 # ---------------------------
 
+
 class GroqVocabSentenceExtractor:
     """Groq call #2 — vocabulary + practice sentences"""
 
@@ -276,6 +295,7 @@ class GroqVocabSentenceExtractor:
         if not self.enabled:
             logger.info("Groq disabled → heuristic vocab/sentence fallback.")
             from ..extractors import VocabularyExtractor, SentenceExtractor
+
             return {
                 "vocabulary": VocabularyExtractor().extract(transcript),
                 "sentences": SentenceExtractor().extract(transcript),
@@ -318,7 +338,9 @@ Limits: {max_vocab} vocab, {max_sentences} sentences.
             if not heb and self.translator:
                 heb = _translate_word(word, self.translator)
 
-            vocab.append({"word": word, "hebrew": heb, "example": example, "difficulty": diff})
+            vocab.append(
+                {"word": word, "hebrew": heb, "example": example, "difficulty": diff}
+            )
             if len(vocab) >= max_vocab:
                 break
 
@@ -328,7 +350,9 @@ Limits: {max_vocab} vocab, {max_sentences} sentences.
             diff = (s.get("difficulty") or "medium").strip()
             gf = (s.get("grammar_focus") or "").strip()
             if sentence:
-                sentences.append({"sentence": sentence, "difficulty": diff, "grammar_focus": gf})
+                sentences.append(
+                    {"sentence": sentence, "difficulty": diff, "grammar_focus": gf}
+                )
             if len(sentences) >= max_sentences:
                 break
 
@@ -338,6 +362,7 @@ Limits: {max_vocab} vocab, {max_sentences} sentences.
 # ---------------------------
 # 3) Cloze Generator
 # ---------------------------
+
 
 class GroqClozeGenerator:
     """Groq call #3 — fill-in-blank items"""
@@ -355,24 +380,23 @@ class GroqClozeGenerator:
             out = []
             for s in sentences[:max_cloze]:
                 words = s["sentence"].split()
-                target = words[len(words)//2].strip(".,?!")
+                target = words[len(words) // 2].strip(".,?!")
                 blanked = s["sentence"].replace(target, "_____", 1)
-                opts = [
-                    target,
-                    target + "s",
-                    target + "ed",
-                    target.upper()
-                ]
-                out.append({
-                    "sentence": blanked,
-                    "correct_answer": target,
-                    "options": opts[:4],
-                    "difficulty": s.get("difficulty", "medium")
-                })
+                opts = [target, target + "s", target + "ed", target.upper()]
+                out.append(
+                    {
+                        "sentence": blanked,
+                        "correct_answer": target,
+                        "options": opts[:4],
+                        "difficulty": s.get("difficulty", "medium"),
+                    }
+                )
             return out
 
         vocab_list = [v["word"] for v in vocabulary][:20]
-        sample = "\n".join([f"{i+1}. {s['sentence']}" for i, s in enumerate(sentences[:20])])
+        sample = "\n".join(
+            [f"{i+1}. {s['sentence']}" for i, s in enumerate(sentences[:20])]
+        )
 
         sys = "You write clean ESL cloze questions."
         user = f"""
@@ -426,15 +450,19 @@ Max: {max_cloze}
                     break
             # Pad if needed
             while len(unique_opts) < 4:
-                unique_opts.append(ans + "s" if ans + "s" not in unique_opts else ans.upper())
+                unique_opts.append(
+                    ans + "s" if ans + "s" not in unique_opts else ans.upper()
+                )
 
-            out.append({
-                "sentence": sent,
-                "correct_answer": ans,
-                "options": unique_opts[:4],
-                "difficulty": diff,
-                "hint": "Choose the word that fits best."
-            })
+            out.append(
+                {
+                    "sentence": sent,
+                    "correct_answer": ans,
+                    "options": unique_opts[:4],
+                    "difficulty": diff,
+                    "hint": "Choose the word that fits best.",
+                }
+            )
 
         return out
 
@@ -443,26 +471,27 @@ Max: {max_cloze}
 # HIGH-LEVEL 3-CALL PIPELINE
 # ---------------------------
 
+
 def run_two_call_pipeline(
     transcript: str,
     limits: Optional[Dict[str, int]] = None,
-    enhance_distractors: bool = True
+    enhance_distractors: bool = True,
 ) -> Dict[str, Any]:
     """
     Production 3-call pipeline:
-    
+
     Call 1: Extract vocabulary, mistakes, sentences (local extractors)
     Call 2: Generate all games (rule-based generators)
     Call 3: Enhance distractors with Groq (optional, single LLM call)
-    
+
     The third call upgrades synthetic distractors (e.g., "goess", "eated")
     to semantic, pedagogically-sound alternatives (e.g., "walks", "consumed").
-    
+
     Args:
         transcript: Lesson transcript text
         limits: Optional dict with limits per exercise type
         enhance_distractors: If True, call Groq to improve distractor quality
-    
+
     Returns:
         Dict with all 6 exercise types, counts, and metadata.
     """
@@ -473,7 +502,7 @@ def run_two_call_pipeline(
         generate_fill_blank,
         generate_sentence_builder,
         generate_grammar_challenge,
-        generate_advanced_cloze
+        generate_advanced_cloze,
     )
 
     limits = limits or {}
@@ -493,7 +522,9 @@ def run_two_call_pipeline(
 
     logger.info(
         "Extraction complete: %d vocab, %d mistakes, %d sentences",
-        len(vocabulary), len(mistakes), len(sentences)
+        len(vocabulary),
+        len(mistakes),
+        len(sentences),
     )
 
     # -----------------------------------------
@@ -502,8 +533,12 @@ def run_two_call_pipeline(
     flashcards = generate_flashcards(vocabulary, transcript, limit=flash_limit)
     spelling = generate_spelling_items(vocabulary, transcript, limit=spelling_limit)
     fill_blank = generate_fill_blank(mistakes, transcript, limit=fill_blank_limit)
-    sentence_builder = generate_sentence_builder(sentences, limit=sentence_builder_limit)
-    grammar_challenge = generate_grammar_challenge(mistakes, limit=grammar_challenge_limit)
+    sentence_builder = generate_sentence_builder(
+        sentences, limit=sentence_builder_limit
+    )
+    grammar_challenge = generate_grammar_challenge(
+        mistakes, limit=grammar_challenge_limit
+    )
     advanced_cloze = generate_advanced_cloze(sentences, limit=advanced_cloze_limit)
 
     exercises = {
@@ -521,6 +556,7 @@ def run_two_call_pipeline(
     if enhance_distractors:
         try:
             from ..enhancers import enhance_pipeline_output
+
             logger.info("Enhancing distractors with Groq...")
             exercises = enhance_pipeline_output(exercises)
             logger.info("Distractor enhancement complete")
@@ -543,5 +579,5 @@ def run_two_call_pipeline(
             "mistakes_count": len(mistakes),
             "sentences_count": len(sentences),
             "distractors_enhanced": enhance_distractors,
-        }
+        },
     }

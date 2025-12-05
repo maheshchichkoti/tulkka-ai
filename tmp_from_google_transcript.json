@@ -1,0 +1,491 @@
+{
+  "flashcards": [
+    {
+      "id": "9cf87e21-2982-494a-9591-63cf4d8e3e4d",
+      "word": "hear",
+      "translation": "לִשְׁמוֹעַ",
+      "example_sentence": "Can you hear me?",
+      "difficulty": "beginner",
+      "source": "content_word",
+      "hint": "Word from lesson (content_word)"
+    },
+    {
+      "id": "bac152ee-c088-43d8-80b7-f6a972152815",
+      "word": "first",
+      "translation": "רֵאשִׁית",
+      "example_sentence": "[0:4:39] So, first of all, Jonathan, before we start our lesson, [0:4:45] do you have the new Tulka application?",
+      "difficulty": "intermediate",
+      "source": "content_word",
+      "hint": "Word from lesson (content_word)"
+    },
+    {
+      "id": "86f97a92-39c6-4512-8104-cb7ae9f06522",
+      "word": "before",
+      "translation": "לִפנֵי",
+      "example_sentence": "[0:4:39] So, first of all, Jonathan, before we start our lesson, [0:4:45] do you have the new Tulka application?",
+      "difficulty": "intermediate",
+      "source": "content_word",
+      "hint": "Word from lesson (content_word)"
+    },
+    {
+      "id": "47647b4f-e5ca-4407-9023-661cb459f31b",
+      "word": "lesson",
+      "translation": "לֶקַח",
+      "example_sentence": "[0:4:39] So, first of all, Jonathan, before we start our lesson, [0:4:45] do you have the new Tulka application?",
+      "difficulty": "intermediate",
+      "source": "content_word",
+      "hint": "Word from lesson (content_word)"
+    },
+    {
+      "id": "0c8ae832-2b82-42fb-af10-e9ae186ce1b2",
+      "word": "application",
+      "translation": "בַּקָשָׁה",
+      "example_sentence": "[0:4:39] So, first of all, Jonathan, before we start our lesson, [0:4:45] do you have the new Tulka application?",
+      "difficulty": "advanced",
+      "source": "content_word",
+      "hint": "Word from lesson (content_word)"
+    },
+    {
+      "id": "784ab65c-3557-4461-a754-2196e7a7929d",
+      "word": "aplikatya",
+      "translation": "aplikatya",
+      "example_sentence": "I use the word 'aplikatya' in my English class.",
+      "difficulty": "advanced",
+      "source": "content_word",
+      "hint": "Word from lesson (content_word)"
+    },
+    {
+      "id": "7c2ccfca-80bf-46f8-beaf-5a18a2b06536",
+      "word": "phone",
+      "translation": "טֵלֵפוֹן",
+      "example_sentence": "[0:4:55] in your phone.",
+      "difficulty": "intermediate",
+      "source": "content_word",
+      "hint": "Word from lesson (content_word)"
+    },
+    {
+      "id": "e1912463-3a62-47c0-91c5-18b24374b543",
+      "word": "homework",
+      "translation": "שִׁעוּרֵי בַּיִת",
+      "example_sentence": "[0:4:58] You have the the new one where you can see your homework, your feedbacks and schedule.",
+      "difficulty": "advanced",
+      "source": "content_word",
+      "hint": "Word from lesson (content_word)"
+    }
+  ],
+  "spelling": [
+    {
+      "id": "73dcb44e-5ac9-4106-b84c-cd44cdbf4e21",
+      "word": "hear",
+      "translation": "לִשְׁמוֹעַ",
+      "hint": "לִשְׁמוֹעַ",
+      "difficulty": "beginner",
+      "source": "content_word",
+      "sample_sentence": "Can you hear me?"
+    },
+    {
+      "id": "34748be0-1a5b-4490-afa1-5c5d7ae77107",
+      "word": "first",
+      "translation": "רֵאשִׁית",
+      "hint": "רֵאשִׁית",
+      "difficulty": "intermediate",
+      "source": "content_word",
+      "sample_sentence": "[0:4:39] So, first of all, Jonathan, before we start our lesson, [0:4:45] do you have the new Tulka application?"
+    },
+    {
+      "id": "83b333c0-6f6b-4cf2-81ba-3054f77d7382",
+      "word": "before",
+      "translation": "לִפנֵי",
+      "hint": "לִפנֵי",
+      "difficulty": "intermediate",
+      "source": "content_word",
+      "sample_sentence": "[0:4:39] So, first of all, Jonathan, before we start our lesson, [0:4:45] do you have the new Tulka application?"
+    },
+    {
+      "id": "aef04330-a72d-46ec-9186-96aea73031ae",
+      "word": "lesson",
+      "translation": "לֶקַח",
+      "hint": "לֶקַח",
+      "difficulty": "intermediate",
+      "source": "content_word",
+      "sample_sentence": "[0:4:39] So, first of all, Jonathan, before we start our lesson, [0:4:45] do you have the new Tulka application?"
+    },
+    {
+      "id": "5aef5da6-95dd-4d87-bc00-a7578561069e",
+      "word": "application",
+      "translation": "בַּקָשָׁה",
+      "hint": "בַּקָשָׁה",
+      "difficulty": "advanced",
+      "source": "content_word",
+      "sample_sentence": "[0:4:39] So, first of all, Jonathan, before we start our lesson, [0:4:45] do you have the new Tulka application?"
+    },
+    {
+      "id": "ea49e653-da5c-430d-9849-906b1f6f31c1",
+      "word": "aplikatya",
+      "translation": "aplikatya",
+      "hint": "aplikatya",
+      "difficulty": "advanced",
+      "source": "content_word",
+      "sample_sentence": "Can you spell the word 'aplikatya'?"
+    },
+    {
+      "id": "5b243cd2-8ec8-462c-88e7-36b802e1da01",
+      "word": "phone",
+      "translation": "טֵלֵפוֹן",
+      "hint": "טֵלֵפוֹן",
+      "difficulty": "intermediate",
+      "source": "content_word",
+      "sample_sentence": "[0:4:55] in your phone."
+    },
+    {
+      "id": "7c70f817-3881-4be2-be87-802402e6a842",
+      "word": "homework",
+      "translation": "שִׁעוּרֵי בַּיִת",
+      "hint": "שִׁעוּרֵי בַּיִת",
+      "difficulty": "advanced",
+      "source": "content_word",
+      "sample_sentence": "[0:4:58] You have the the new one where you can see your homework, your feedbacks and schedule."
+    }
+  ],
+  "fill_blank": [
+    {
+      "id": "060520ab-af72-4ce1-bf17-db93128ff797",
+      "sentence": "This _____ is very important.",
+      "options": [
+        "project",
+        "task",
+        "work",
+        "assignment"
+      ],
+      "correct_answer": "work",
+      "difficulty": "beginner",
+      "source_mistake": "vocabulary_template",
+      "explanation": "Activity to achieve a purpose",
+      "hint": "Choose the word that best completes the sentence.",
+      "concept": "vocabulary"
+    },
+    {
+      "id": "0de9f7d3-d281-4946-8881-f540bc67e952",
+      "sentence": "I met a new _____ at school.",
+      "options": [
+        "classmate",
+        "teacher",
+        "friend",
+        "student"
+      ],
+      "correct_answer": "friend",
+      "difficulty": "intermediate",
+      "source_mistake": "vocabulary_template",
+      "explanation": "Someone you enjoy spending time with",
+      "hint": "Choose the word that best completes the sentence.",
+      "concept": "vocabulary"
+    },
+    {
+      "id": "b4933bc7-bb01-4361-bbb5-61c56e6f017d",
+      "sentence": "She saves _____ every month.",
+      "options": [
+        "allowance",
+        "salary",
+        "tips",
+        "money"
+      ],
+      "correct_answer": "money",
+      "difficulty": "intermediate",
+      "source_mistake": "vocabulary_template",
+      "explanation": "Currency or funds",
+      "hint": "Choose the word that best completes the sentence.",
+      "concept": "vocabulary"
+    },
+    {
+      "id": "2672de19-89f4-49d3-a503-8b96ef791f8c",
+      "sentence": "Can I borrow your _____?",
+      "options": [
+        "pencil",
+        "book",
+        "notebook",
+        "dictionary"
+      ],
+      "correct_answer": "book",
+      "difficulty": "beginner",
+      "source_mistake": "vocabulary_template",
+      "explanation": "A 'book' contains stories or information.",
+      "hint": "Choose the word that best completes the sentence.",
+      "concept": "vocabulary"
+    },
+    {
+      "id": "ead8961e-55b5-4a35-8732-8391b74eafaa",
+      "sentence": "Do you _____ the answer?",
+      "options": [
+        "remember",
+        "learn",
+        "know",
+        "understand"
+      ],
+      "correct_answer": "know",
+      "difficulty": "beginner",
+      "source_mistake": "vocabulary_template",
+      "explanation": "'Know' means to have information.",
+      "hint": "Choose the word that best completes the sentence.",
+      "concept": "vocabulary"
+    },
+    {
+      "id": "f40b47a3-4e5c-41bc-a7bd-e1fea78c913f",
+      "sentence": "Where do you want to _____?",
+      "options": [
+        "travel",
+        "go",
+        "visit",
+        "explore"
+      ],
+      "correct_answer": "go",
+      "difficulty": "beginner",
+      "source_mistake": "vocabulary_template",
+      "explanation": "'Go' is used for traveling or moving.",
+      "hint": "Choose the word that best completes the sentence.",
+      "concept": "vocabulary"
+    },
+    {
+      "id": "6d2d1f49-fb77-4801-94e8-34e1298533ac",
+      "sentence": "She has one _____.",
+      "options": [
+        "sibling",
+        "child",
+        "nephew",
+        "cousin"
+      ],
+      "correct_answer": "child",
+      "difficulty": "intermediate",
+      "source_mistake": "vocabulary_template",
+      "explanation": "Offspring",
+      "hint": "Choose the word that best completes the sentence.",
+      "concept": "vocabulary"
+    },
+    {
+      "id": "a1eb696d-6640-4fb9-a40b-f688aabd9acd",
+      "sentence": "The children _____ lunch at school.",
+      "options": [
+        "have",
+        "take",
+        "consume",
+        "eat"
+      ],
+      "correct_answer": "eat",
+      "difficulty": "beginner",
+      "source_mistake": "vocabulary_template",
+      "explanation": "'Eat' means to take in food.",
+      "hint": "Choose the word that best completes the sentence.",
+      "concept": "vocabulary"
+    }
+  ],
+  "sentence_builder": [
+    {
+      "id": "0aa4cf47-17fd-4723-963c-57b25f2cbb24",
+      "english": "[0:4:29] Can you hear me well.",
+      "tokens": [
+        ":",
+        ":",
+        "Can",
+        "you",
+        "hear",
+        "me",
+        "well",
+        "."
+      ],
+      "accepted": [
+        [
+          ":",
+          ":",
+          "Can",
+          "you",
+          "hear",
+          "me",
+          "well",
+          "."
+        ]
+      ],
+      "translation": "[0:4:29] האם אתה שומע אותי טוב.",
+      "hint": "Rebuild the sentence in the correct order.",
+      "difficulty": "beginner"
+    },
+    {
+      "id": "35ff9136-032c-4ceb-8a33-515aa0a98246",
+      "english": "[0:5:25] Regarding our lesson last time.",
+      "tokens": [
+        ":",
+        ":",
+        "Regarding",
+        "our",
+        "lesson",
+        "last",
+        "time",
+        "."
+      ],
+      "accepted": [
+        [
+          ":",
+          ":",
+          "Regarding",
+          "our",
+          "lesson",
+          "last",
+          "time",
+          "."
+        ]
+      ],
+      "translation": "[0:5:25] לגבי השיעור שלנו בפעם הקודמת.",
+      "hint": "Rebuild the sentence in the correct order.",
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "2d0f8fdb-9545-4d66-9a61-b4cbbffecc83",
+      "english": "[0:5:27] Alashir shalanu (our lesson) ba'avar (in the past).",
+      "tokens": [
+        ":",
+        ":",
+        "Alashir",
+        "shalanu",
+        "our",
+        "lesson",
+        "ba'avar",
+        "in",
+        "the",
+        "past",
+        "."
+      ],
+      "accepted": [
+        [
+          ":",
+          ":",
+          "Alashir",
+          "shalanu",
+          "our",
+          "lesson",
+          "ba'avar",
+          "in",
+          "the",
+          "past",
+          "."
+        ]
+      ],
+      "translation": "[0:5:27] אלאשיר שלאנו (השיעור שלנו) בבאר (בעבר).",
+      "hint": "Rebuild the sentence in the correct order.",
+      "difficulty": "intermediate"
+    }
+  ],
+  "grammar_challenge": [
+    {
+      "id": "a19df2bd-76a8-4d59-b0fa-7cd698b0b73c",
+      "prompt": "She ____ to school every day.",
+      "options": [
+        "walks",
+        "drives",
+        "rides",
+        "goes"
+      ],
+      "correct_answer": "goes",
+      "explanation": "Correct form is 'goes'.",
+      "hint": "Select the correct word for the sentence.",
+      "difficulty": "beginner",
+      "concept": "third_person",
+      "source_mistake": "auto_template"
+    },
+    {
+      "id": "dfc2b9d8-4ba9-47cf-970a-730ed975f564",
+      "prompt": "They ____ the book every week.",
+      "options": [
+        "study",
+        "read",
+        "review",
+        "analyze"
+      ],
+      "correct_answer": "read",
+      "explanation": "Correct form is 'read'.",
+      "hint": "Select the correct word for the sentence.",
+      "difficulty": "beginner",
+      "concept": "verb_forms",
+      "source_mistake": "auto_template"
+    },
+    {
+      "id": "f318b3e3-33a2-4e00-b3f5-df8cd480a7f2",
+      "prompt": "I ____ an apple for breakfast.",
+      "options": [
+        "drink",
+        "eat",
+        "taste",
+        "savor"
+      ],
+      "correct_answer": "eat",
+      "explanation": "Correct form is 'eat'.",
+      "hint": "Select the correct word for the sentence.",
+      "difficulty": "beginner",
+      "concept": "verb_forms",
+      "source_mistake": "auto_template"
+    }
+  ],
+  "advanced_cloze": [
+    {
+      "id": "e684e866-a408-45ab-b3f3-695eb9ecef46",
+      "sentence": "[0:4:58] You _____ the the new one where you can see _____ homework, your feedbacks and schedule.",
+      "blank1": {
+        "options": [
+          "use",
+          "access",
+          "have",
+          "utilize"
+        ],
+        "correct": "have",
+        "hint": "Consider the grammar and meaning of blank 1."
+      },
+      "blank2": {
+        "options": [
+          "my",
+          "your",
+          "our",
+          "their"
+        ],
+        "correct": "your",
+        "hint": "Consider the grammar and meaning of blank 2."
+      },
+      "difficulty": "intermediate",
+      "source_sentence": "[0:4:58] You have the the new one where you can see your homework, your feedbacks and schedule.",
+      "concept": "advanced_cloze"
+    },
+    {
+      "id": "df39edbc-2fa3-46de-ae8d-2e6f6bb6c95b",
+      "sentence": "[0:5:25] Regarding our _____ _____ time.",
+      "blank1": {
+        "options": [
+          "class",
+          "lesson",
+          "course",
+          "tutorial"
+        ],
+        "correct": "lesson",
+        "hint": "Consider the grammar and meaning of blank 1."
+      },
+      "blank2": {
+        "options": [
+          "previous",
+          "last",
+          "next",
+          "upcoming"
+        ],
+        "correct": "last",
+        "hint": "Consider the grammar and meaning of blank 2."
+      },
+      "difficulty": "intermediate",
+      "source_sentence": "[0:5:25] Regarding our lesson last time.",
+      "concept": "advanced_cloze"
+    }
+  ],
+  "mistakes": [],
+  "metadata": {
+    "lesson_number": 1,
+    "status": "success",
+    "quality_passed": true,
+    "vocabulary_count": 15,
+    "mistakes_count": 0,
+    "sentences_count": 15,
+    "total_exercises": 32
+  }
+}
